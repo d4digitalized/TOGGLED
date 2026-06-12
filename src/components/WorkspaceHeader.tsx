@@ -41,14 +41,16 @@ export default function WorkspaceHeader({
   }
 
   return (
-    <header className="border-b border-neutral-200 bg-white">
-      <div className="mx-auto flex max-w-4xl flex-wrap items-center gap-x-4 gap-y-2 p-3">
-        <span className="font-bold">Toggled</span>
+    <header className="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur">
+      <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 p-3">
+        <span className="font-display text-lg font-bold tracking-tight">
+          Toggled<span className="text-accent">.</span>
+        </span>
         {workspaces.length > 1 ? (
           <select
             value={wsId}
             onChange={(e) => router.push(`/w/${e.target.value}`)}
-            className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+            className="input px-2 py-1"
           >
             {workspaces.map((w) => (
               <option key={w.id} value={w.id}>
@@ -57,7 +59,7 @@ export default function WorkspaceHeader({
             ))}
           </select>
         ) : (
-          <span className="text-sm text-neutral-500">{workspaces[0]?.name}</span>
+          <span className="text-sm text-ink-soft">{workspaces[0]?.name}</span>
         )}
         <nav className="flex flex-wrap gap-1">
           {links.map((l) => (
@@ -66,8 +68,8 @@ export default function WorkspaceHeader({
               href={l.href}
               className={`rounded-md px-2 py-1 text-sm ${
                 pathname === l.href
-                  ? "bg-neutral-900 text-white"
-                  : "text-neutral-600 hover:bg-neutral-100"
+                  ? "bg-accent-soft font-medium text-accent"
+                  : "text-ink-soft hover:bg-black/5"
               }`}
             >
               {l.label}
@@ -82,11 +84,11 @@ export default function WorkspaceHeader({
             </Link>
           )}
         </nav>
-        <div className="ml-auto flex items-center gap-2 text-sm text-neutral-500">
+        <div className="ml-auto flex items-center gap-2 text-sm text-ink-soft">
           <span>{userName}</span>
           <button
             onClick={logout}
-            className="rounded-md px-2 py-1 hover:bg-neutral-100"
+            className="rounded-md px-2 py-1 hover:bg-black/5"
           >
             Odhlásit
           </button>

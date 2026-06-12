@@ -51,32 +51,32 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
     load();
   }
 
-  if (loading) return <p className="p-4 text-neutral-400">Načítám…</p>;
+  if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
 
   return (
     <div className="space-y-4">
       <form
         onSubmit={add}
-        className="flex gap-2 rounded-xl border border-neutral-200 bg-white p-3"
+        className="flex gap-2 panel p-3"
       >
         <input
           type="text"
           placeholder="Nový projekt…"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
-          className="flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
+          className="flex-1 input"
         />
         <button
           type="submit"
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700"
+          className="btn-primary"
         >
           Přidat
         </button>
       </form>
 
-      <div className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white">
+      <div className="divide-y divide-line/70 panel">
         {projects.length === 0 && (
-          <p className="p-4 text-sm text-neutral-400">Zatím žádné projekty.</p>
+          <p className="p-4 text-sm text-ink-soft/70">Zatím žádné projekty.</p>
         )}
         {projects.map((project) => (
           <div key={project.id} className="flex items-center gap-2 px-3 py-2">
@@ -86,12 +86,12 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
                   type="text"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  className="flex-1 rounded-md border border-neutral-300 px-2 py-1 text-sm"
+                  className="flex-1 input px-2 py-1"
                   autoFocus
                 />
                 <button
                   onClick={() => rename(project)}
-                  className="rounded-md bg-neutral-900 px-2 py-1 text-xs text-white"
+                  className="btn-primary px-2 py-1 text-xs"
                 >
                   Uložit
                 </button>
@@ -99,7 +99,7 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
             ) : (
               <>
                 <span
-                  className={`flex-1 text-sm ${project.archived ? "text-neutral-400 line-through" : ""}`}
+                  className={`flex-1 text-sm ${project.archived ? "text-ink-soft/70 line-through" : ""}`}
                 >
                   {project.name}
                 </span>
@@ -108,13 +108,13 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
                     setEditingId(project.id);
                     setEditName(project.name);
                   }}
-                  className="rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-100"
+                  className="rounded-md px-2 py-1 text-xs text-ink-soft hover:bg-black/5"
                 >
                   Přejmenovat
                 </button>
                 <button
                   onClick={() => toggleArchive(project)}
-                  className="rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-100"
+                  className="rounded-md px-2 py-1 text-xs text-ink-soft hover:bg-black/5"
                 >
                   {project.archived ? "Obnovit" : "Archivovat"}
                 </button>

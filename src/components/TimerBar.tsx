@@ -80,22 +80,22 @@ export default function TimerBar({
       running.projects?.name ||
       "Měřím čas";
     return (
-      <div className="flex items-center gap-3 rounded-xl border border-green-300 bg-green-50 p-3">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-green-500" />
+      <div className="sticky top-16 z-30 flex items-center gap-3 rounded-xl border border-accent/40 bg-accent-soft p-3 shadow-sm">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{label}</p>
-          <p className="truncate text-xs text-neutral-500">
+          <p className="truncate text-xs text-ink-soft">
             {running.projects?.name}
           </p>
         </div>
-        <span className="font-mono text-lg tabular-nums">
+        <span className="font-mono text-lg font-semibold tabular-nums text-brass">
           {fmtClock(entrySeconds(running.started_at, null))}
         </span>
         <button
           onClick={() => stopRunningTimer(supabase, userId)}
-          className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500"
+          className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500"
         >
-          Stop
+          Zastavit
         </button>
       </div>
     );
@@ -105,13 +105,13 @@ export default function TimerBar({
     return (
       <form
         onSubmit={startFree}
-        className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 bg-white p-3"
+        className="flex flex-wrap items-center gap-2 panel p-3"
       >
         <select
           required
           value={freeProject}
           onChange={(e) => setFreeProject(e.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+          className="input px-2"
         >
           <option value="">Projekt…</option>
           {projects.map((p) => (
@@ -125,18 +125,18 @@ export default function TimerBar({
           placeholder="Na čem děláš? (volitelné)"
           value={freeDescription}
           onChange={(e) => setFreeDescription(e.target.value)}
-          className="min-w-40 flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
+          className="min-w-40 flex-1 input"
         />
         <button
           type="submit"
-          className="rounded-md bg-green-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-green-500"
+          className="btn-primary"
         >
           ▶ Start
         </button>
         <button
           type="button"
           onClick={() => setFreeOpen(false)}
-          className="rounded-md px-2 py-1.5 text-sm text-neutral-500 hover:bg-neutral-100"
+          className="rounded-md px-2 py-1.5 text-sm text-ink-soft hover:bg-black/5"
         >
           Zrušit
         </button>
@@ -148,7 +148,7 @@ export default function TimerBar({
     <div className="flex justify-end">
       <button
         onClick={openFree}
-        className="rounded-md border border-neutral-200 bg-white px-3 py-1.5 text-sm text-neutral-600 hover:border-green-400 hover:text-green-700"
+        className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink-soft hover:border-accent/60 hover:text-accent"
       >
         ▶ Spustit volný timer
       </button>

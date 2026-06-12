@@ -27,13 +27,13 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-neutral-50 p-4">
+    <main className="flex min-h-screen items-center justify-center bg-paper p-4">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-xl border border-neutral-200 bg-white p-8 shadow-sm"
+        className="w-full max-w-sm space-y-4 panel p-8 shadow-sm"
       >
         <h1 className="text-2xl font-bold">Toggled</h1>
-        <p className="text-sm text-neutral-500">
+        <p className="text-sm text-ink-soft">
           Přihlas se. Účet vzniká pozvánkou od admina.
         </p>
         <label className="block">
@@ -43,7 +43,7 @@ export default function LoginPage() {
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            className="input mt-1 w-full px-3 py-2"
           />
         </label>
         <label className="block">
@@ -53,14 +53,14 @@ export default function LoginPage() {
             required
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+            className="input mt-1 w-full px-3 py-2"
           />
         </label>
         {error && <p className="text-sm text-red-600">{error}</p>}
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded-md bg-neutral-900 px-3 py-2 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
+          className="btn-primary w-full justify-center"
         >
           {loading ? "Přihlašuji…" : "Přihlásit se"}
         </button>

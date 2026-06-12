@@ -40,25 +40,25 @@ export default function BoardsList({
     load();
   }
 
-  if (loading) return <p className="p-4 text-neutral-400">Načítám…</p>;
+  if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
 
   return (
     <div className="space-y-4">
       {isAdmin && (
         <form
           onSubmit={add}
-          className="flex gap-2 rounded-xl border border-neutral-200 bg-white p-3"
+          className="flex gap-2 panel p-3"
         >
           <input
             type="text"
             placeholder="Nová nástěnka (projekt)…"
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
-            className="flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
+            className="flex-1 input"
           />
           <button
             type="submit"
-            className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700"
+            className="btn-primary"
           >
             Založit
           </button>
@@ -66,7 +66,7 @@ export default function BoardsList({
       )}
 
       {projects.length === 0 ? (
-        <p className="p-4 text-sm text-neutral-400">
+        <p className="p-4 text-sm text-ink-soft/70">
           {isAdmin
             ? "Žádné nástěnky. Založ první nahoře."
             : "Žádné nástěnky. Požádej admina o založení projektu."}
@@ -77,7 +77,7 @@ export default function BoardsList({
             <Link
               key={project.id}
               href={`/w/${wsId}/b/${project.id}`}
-              className="rounded-xl border border-neutral-200 bg-white p-4 font-medium shadow-sm hover:border-neutral-400"
+              className="panel p-4 font-medium shadow-sm hover:border-accent/50"
             >
               {project.name}
             </Link>

@@ -40,7 +40,7 @@ export default async function WorkspaceLayout({
   if (!workspaces.some((w) => w.id === ws.id)) workspaces.unshift(ws);
 
   return (
-    <div className="min-h-screen bg-neutral-50">
+    <div className="min-h-screen bg-paper">
       <WorkspaceHeader
         wsId={wsId}
         workspaces={workspaces}

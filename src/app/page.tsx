@@ -29,7 +29,7 @@ export default async function Home() {
 
   return (
     <main className="flex min-h-screen items-center justify-center p-4">
-      <p className="text-neutral-500">
+      <p className="text-ink-soft">
         Zatím nejsi členem žádného workspace. Požádej admina o pozvánku.
       </p>
     </main>

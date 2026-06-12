@@ -57,28 +57,28 @@ export default function ReportsView({ wsId }: { wsId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 bg-white p-3">
+      <div className="flex flex-wrap items-center gap-2 panel p-3">
         <span className="text-sm font-medium">Období</span>
         <input
           type="date"
           value={from}
           onChange={(e) => setFrom(e.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+          className="input px-2 py-1"
         />
-        <span className="text-neutral-400">–</span>
+        <span className="text-ink-soft/70">–</span>
         <input
           type="date"
           value={to}
           onChange={(e) => setTo(e.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+          className="input px-2 py-1"
         />
-        <span className="ml-auto text-sm text-neutral-500">
+        <span className="ml-auto text-sm text-ink-soft">
           Celkem <span className="font-mono font-medium">{fmtDuration(total)} h</span>
         </span>
       </div>
 
       {loading ? (
-        <p className="p-4 text-neutral-400">Načítám…</p>
+        <p className="p-4 text-ink-soft/70">Načítám…</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {(
@@ -87,17 +87,17 @@ export default function ReportsView({ wsId }: { wsId: string }) {
               ["Po projektech", sorted(byProject)],
             ] as const
           ).map(([title, rows]) => (
-            <div key={title} className="rounded-xl border border-neutral-200 bg-white">
-              <h2 className="border-b border-neutral-100 px-3 py-2 text-sm font-semibold">
+            <div key={title} className="panel">
+              <h2 className="border-b border-line/70 px-3 py-2 text-sm font-semibold">
                 {title}
               </h2>
               {rows.length === 0 ? (
-                <p className="p-3 text-sm text-neutral-400">Žádná data za období.</p>
+                <p className="p-3 text-sm text-ink-soft/70">Žádná data za období.</p>
               ) : (
                 <table className="w-full text-sm">
                   <tbody>
                     {rows.map(([name, seconds]) => (
-                      <tr key={name} className="border-b border-neutral-50 last:border-0">
+                      <tr key={name} className="border-b border-line/50 last:border-0">
                         <td className="px-3 py-2">{name}</td>
                         <td className="px-3 py-2 text-right font-mono tabular-nums">
                           {fmtDuration(seconds)} h
@@ -111,7 +111,7 @@ export default function ReportsView({ wsId }: { wsId: string }) {
           ))}
         </div>
       )}
-      <p className="text-xs text-neutral-400">
+      <p className="text-xs text-ink-soft/70">
         Běžící (nezastavené) timery se do přehledu nepočítají.
       </p>
     </div>

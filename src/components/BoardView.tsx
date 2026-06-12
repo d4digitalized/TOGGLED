@@ -244,7 +244,7 @@ export default function BoardView({
       .eq("id", activeId);
   }
 
-  if (loading) return <p className="p-4 text-neutral-400">Načítám…</p>;
+  if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
 
   return (
     <div className="space-y-3">
@@ -301,7 +301,7 @@ export default function BoardView({
                       value={newCardTitle}
                       onChange={(e) => setNewCardTitle(e.target.value)}
                       onBlur={() => !newCardTitle.trim() && setAddingTo(null)}
-                      className="w-full rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+                      className="w-full input px-2"
                     />
                   </form>
                 ) : (
@@ -310,7 +310,7 @@ export default function BoardView({
                       setAddingTo(col.id);
                       setNewCardTitle("");
                     }}
-                    className="mt-2 w-full rounded-md px-2 py-1 text-left text-xs text-neutral-400 hover:bg-neutral-200 hover:text-neutral-600"
+                    className="mt-2 w-full rounded-md px-2 py-1 text-left text-xs text-ink-soft/70 hover:bg-black/10 hover:text-ink-soft"
                   >
                     + Karta
                   </button>
@@ -325,14 +325,14 @@ export default function BoardView({
               placeholder="+ Nový sloupec…"
               value={newColumnName}
               onChange={(e) => setNewColumnName(e.target.value)}
-              className="w-full rounded-lg border border-dashed border-neutral-300 bg-transparent px-3 py-2 text-sm placeholder:text-neutral-400"
+              className="w-full rounded-lg border border-dashed border-line bg-transparent px-3 py-2 text-sm placeholder:text-ink-soft/70"
             />
           </form>
         </div>
 
         <DragOverlay>
           {activeCard && (
-            <div className="rounded-lg border border-neutral-300 bg-white p-2 shadow-lg">
+            <div className="rounded-lg border border-line bg-surface p-2 shadow-lg">
               <p className="text-sm">{activeCard.title}</p>
             </div>
           )}
@@ -373,13 +373,13 @@ function SortableColumn({
     <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className={`w-64 shrink-0 rounded-xl bg-neutral-100 p-2 ${isDragging ? "opacity-50" : ""}`}
+      className={`w-64 shrink-0 rounded-xl bg-black/5 p-2 ${isDragging ? "opacity-50" : ""}`}
     >
       <div className="mb-2 flex items-center gap-1">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab rounded px-1 text-neutral-400 hover:bg-neutral-200"
+          className="cursor-grab rounded px-1 text-ink-soft/70 hover:bg-black/10"
           title="Přetáhnout sloupec"
         >
           ⠿
@@ -387,14 +387,14 @@ function SortableColumn({
         <span className="flex-1 truncate text-sm font-semibold">{column.name}</span>
         <button
           onClick={onRename}
-          className="rounded px-1 text-xs text-neutral-400 hover:bg-neutral-200"
+          className="rounded px-1 text-xs text-ink-soft/70 hover:bg-black/10"
           title="Přejmenovat"
         >
           ✎
         </button>
         <button
           onClick={onDelete}
-          className="rounded px-1 text-xs text-neutral-400 hover:bg-neutral-200"
+          className="rounded px-1 text-xs text-ink-soft/70 hover:bg-black/10"
           title="Smazat sloupec"
         >
           ×

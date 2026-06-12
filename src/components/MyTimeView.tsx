@@ -134,7 +134,7 @@ export default function MyTimeView({
     load();
   }
 
-  if (loading) return <p className="p-4 text-neutral-400">Načítám…</p>;
+  if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
 
   const byDay = new Map<string, TimeEntry[]>();
   for (const entry of entries) {
@@ -146,13 +146,13 @@ export default function MyTimeView({
     <div className="space-y-4">
       <form
         onSubmit={addEntry}
-        className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 bg-white p-3"
+        className="flex flex-wrap items-center gap-2 panel p-3"
       >
         <select
           required
           value={addProject}
           onChange={(e) => setAddProject(e.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+          className="input px-2"
         >
           <option value="">Projekt…</option>
           {projects.map((p) => (
@@ -165,7 +165,7 @@ export default function MyTimeView({
           value={addTask}
           onChange={(e) => setAddTask(e.target.value)}
           disabled={!addProject}
-          className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm disabled:opacity-50"
+          className="input px-2 disabled:opacity-50"
         >
           <option value="">Bez karty</option>
           {tasks.map((t) => (
@@ -179,33 +179,33 @@ export default function MyTimeView({
           placeholder="Popis (volitelné)"
           value={addDescription}
           onChange={(e) => setAddDescription(e.target.value)}
-          className="min-w-32 flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
+          className="min-w-32 flex-1 input"
         />
         <input
           type="date"
           required
           value={addDate}
           onChange={(e) => setAddDate(e.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+          className="input px-2 py-1"
         />
         <input
           type="time"
           required
           value={addFrom}
           onChange={(e) => setAddFrom(e.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+          className="input px-2 py-1"
         />
-        <span className="text-neutral-400">–</span>
+        <span className="text-ink-soft/70">–</span>
         <input
           type="time"
           required
           value={addTo}
           onChange={(e) => setAddTo(e.target.value)}
-          className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+          className="input px-2 py-1"
         />
         <button
           type="submit"
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700"
+          className="btn-primary"
         >
           Zapsat čas
         </button>
@@ -213,7 +213,7 @@ export default function MyTimeView({
       </form>
 
       {entries.length === 0 && (
-        <p className="p-4 text-sm text-neutral-400">
+        <p className="p-4 text-sm text-ink-soft/70">
           Za posledních 30 dní tu nejsou žádné záznamy.
         </p>
       )}
@@ -224,8 +224,8 @@ export default function MyTimeView({
           0
         );
         return (
-          <div key={day} className="rounded-xl border border-neutral-200 bg-white">
-            <div className="flex items-center justify-between border-b border-neutral-100 px-3 py-2">
+          <div key={day} className="panel">
+            <div className="flex items-center justify-between border-b border-line/70 px-3 py-2">
               <span className="text-sm font-medium">
                 {new Date(`${day}T00:00`).toLocaleDateString("cs-CZ", {
                   weekday: "long",
@@ -233,18 +233,18 @@ export default function MyTimeView({
                   month: "long",
                 })}
               </span>
-              <span className="font-mono text-sm text-neutral-500">
+              <span className="font-mono text-sm text-ink-soft">
                 {fmtDuration(total)} h
               </span>
             </div>
-            <div className="divide-y divide-neutral-50">
+            <div className="divide-y divide-line/50">
               {dayEntries.map((entry) => (
                 <div key={entry.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm">
                       {entry.tasks?.title || entry.description || "(bez popisu)"}
                     </p>
-                    <p className="text-xs text-neutral-400">{entry.projects?.name}</p>
+                    <p className="text-xs text-ink-soft/70">{entry.projects?.name}</p>
                   </div>
                   {editingId === entry.id ? (
                     <>
@@ -252,32 +252,32 @@ export default function MyTimeView({
                         type="datetime-local"
                         value={editStart}
                         onChange={(e) => setEditStart(e.target.value)}
-                        className="rounded-md border border-neutral-300 px-1 py-0.5 text-xs"
+                        className="input px-1 py-0.5 text-xs"
                       />
                       {entry.stopped_at && (
                         <input
                           type="datetime-local"
                           value={editStop}
                           onChange={(e) => setEditStop(e.target.value)}
-                          className="rounded-md border border-neutral-300 px-1 py-0.5 text-xs"
+                          className="input px-1 py-0.5 text-xs"
                         />
                       )}
                       <button
                         onClick={() => saveEdit(entry)}
-                        className="rounded-md bg-neutral-900 px-2 py-1 text-xs text-white"
+                        className="btn-primary px-2 py-1 text-xs"
                       >
                         Uložit
                       </button>
                       <button
                         onClick={() => setEditingId(null)}
-                        className="rounded-md px-2 py-1 text-xs text-neutral-500"
+                        className="rounded-md px-2 py-1 text-xs text-ink-soft"
                       >
                         Zrušit
                       </button>
                     </>
                   ) : (
                     <>
-                      <span className="text-xs text-neutral-500">
+                      <span className="text-xs text-ink-soft">
                         {fmtTime(entry.started_at)}
                         {" – "}
                         {entry.stopped_at ? fmtTime(entry.stopped_at) : "běží"}
@@ -289,13 +289,13 @@ export default function MyTimeView({
                       </span>
                       <button
                         onClick={() => startEdit(entry)}
-                        className="rounded-md px-2 py-1 text-xs text-neutral-500 hover:bg-neutral-100"
+                        className="rounded-md px-2 py-1 text-xs text-ink-soft hover:bg-black/5"
                       >
                         Upravit
                       </button>
                       <button
                         onClick={() => remove(entry)}
-                        className="rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+                        className="rounded-md px-2 py-1 text-xs text-danger hover:bg-danger/10"
                       >
                         Smazat
                       </button>

@@ -35,18 +35,18 @@ export default function BoardCard({
       {...attributes}
       {...listeners}
       onClick={onOpen}
-      className={`cursor-grab rounded-lg border border-neutral-200 bg-white p-2 shadow-sm hover:border-neutral-400 ${
+      className={`cursor-grab rounded-lg border border-line bg-surface p-2 shadow-sm hover:border-accent/50 ${
         isDragging ? "opacity-40" : ""
       }`}
     >
-      <p className={`text-sm ${isDone ? "text-neutral-400 line-through" : ""}`}>
+      <p className={`text-sm ${isDone ? "text-ink-soft/70 line-through" : ""}`}>
         {task.title}
       </p>
       {(task.due_date || assignee || !isDone) && (
         <div className="mt-1.5 flex items-center gap-2">
           {task.due_date && (
             <span
-              className={`text-xs ${overdue ? "font-medium text-red-600" : "text-neutral-400"}`}
+              className={`text-xs ${overdue ? "font-medium text-red-600" : "text-ink-soft/70"}`}
             >
               {new Date(task.due_date).toLocaleDateString("cs-CZ", {
                 day: "numeric",
@@ -54,10 +54,10 @@ export default function BoardCard({
               })}
             </span>
           )}
-          {task.description && <span className="text-xs text-neutral-300">≡</span>}
+          {task.description && <span className="text-xs text-ink-soft/50">≡</span>}
           <span className="flex-1" />
           {initials && (
-            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-neutral-200 text-[10px] font-medium text-neutral-600">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-black/10 text-[10px] font-medium text-ink-soft">
               {initials}
             </span>
           )}
@@ -68,7 +68,7 @@ export default function BoardCard({
                 onStart();
               }}
               title="Spustit timer"
-              className="rounded px-1 text-xs text-neutral-400 hover:bg-green-50 hover:text-green-700"
+              className="rounded px-1 text-xs text-ink-soft/70 hover:bg-accent-soft hover:text-accent"
             >
               ▶
             </button>

@@ -103,7 +103,7 @@ export default function CardModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg space-y-4 rounded-xl bg-white p-5 shadow-xl"
+        className="w-full max-w-lg space-y-4 rounded-xl bg-surface p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">
@@ -118,11 +118,11 @@ export default function CardModal({
             type="text"
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="flex-1 rounded-md border border-transparent px-2 py-1 text-lg font-semibold hover:border-neutral-300 focus:border-neutral-300"
+            className="flex-1 rounded-md border border-transparent px-2 py-1 text-lg font-semibold hover:border-line focus:border-line"
           />
           <button
             onClick={onClose}
-            className="rounded-md px-2 py-1 text-neutral-400 hover:bg-neutral-100"
+            className="rounded-md px-2 py-1 text-ink-soft/70 hover:bg-black/5"
           >
             ✕
           </button>
@@ -133,14 +133,14 @@ export default function CardModal({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Popis…"
           rows={4}
-          className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm"
+          className="input w-full px-3 py-2"
         />
 
         <div className="flex flex-wrap items-center gap-2">
           <select
             value={assigneeId}
             onChange={(e) => setAssigneeId(e.target.value)}
-            className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+            className="input px-2"
           >
             <option value="">Nepřiřazeno</option>
             {members.map((m) => (
@@ -153,28 +153,28 @@ export default function CardModal({
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
-            className="rounded-md border border-neutral-300 px-2 py-1 text-sm"
+            className="input px-2 py-1"
           />
           <button
             onClick={play}
-            className="rounded-md border border-green-300 px-3 py-1.5 text-sm text-green-700 hover:bg-green-50"
+            className="rounded-md border border-accent/50 px-3 py-1.5 text-sm text-accent hover:bg-accent-soft"
           >
             ▶ Spustit timer
           </button>
         </div>
 
-        <div className="space-y-2 border-t border-neutral-100 pt-3">
+        <div className="space-y-2 border-t border-line/70 pt-3">
           <h3 className="text-sm font-semibold">Komentáře</h3>
           {comments.length === 0 && (
-            <p className="text-xs text-neutral-400">Zatím žádné komentáře.</p>
+            <p className="text-xs text-ink-soft/70">Zatím žádné komentáře.</p>
           )}
           {comments.map((comment) => (
-            <div key={comment.id} className="rounded-lg bg-neutral-50 p-2">
+            <div key={comment.id} className="rounded-lg bg-paper p-2">
               <div className="flex items-baseline gap-2">
                 <span className="text-xs font-medium">
                   {comment.profiles?.full_name || comment.profiles?.email}
                 </span>
-                <span className="text-[10px] text-neutral-400">
+                <span className="text-[10px] text-ink-soft/70">
                   {new Date(comment.created_at).toLocaleString("cs-CZ", {
                     day: "numeric",
                     month: "numeric",
@@ -185,7 +185,7 @@ export default function CardModal({
                 {comment.author_id === userId && (
                   <button
                     onClick={() => removeComment(comment)}
-                    className="ml-auto text-[10px] text-neutral-400 hover:text-red-600"
+                    className="ml-auto text-[10px] text-ink-soft/70 hover:text-danger"
                   >
                     smazat
                   </button>
@@ -200,11 +200,11 @@ export default function CardModal({
               placeholder="Napsat komentář…"
               value={newComment}
               onChange={(e) => setNewComment(e.target.value)}
-              className="flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
+              className="flex-1 input"
             />
             <button
               type="submit"
-              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white hover:bg-neutral-700"
+              className="btn-primary"
             >
               Odeslat
             </button>
@@ -213,16 +213,16 @@ export default function CardModal({
 
         {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <div className="flex items-center justify-between border-t border-neutral-100 pt-3">
+        <div className="flex items-center justify-between border-t border-line/70 pt-3">
           <button
             onClick={remove}
-            className="rounded-md px-2 py-1 text-sm text-red-600 hover:bg-red-50"
+            className="rounded-md px-2 py-1 text-sm text-danger hover:bg-danger/10"
           >
             Smazat kartu
           </button>
           <button
             onClick={save}
-            className="rounded-md bg-neutral-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-neutral-700"
+            className="btn-primary"
           >
             Uložit
           </button>

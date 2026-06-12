@@ -71,13 +71,13 @@ export default function MembersView({
     load();
   }
 
-  if (loading) return <p className="p-4 text-neutral-400">Načítám…</p>;
+  if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
 
   return (
     <div className="space-y-4">
       <form
         onSubmit={invite}
-        className="flex flex-wrap items-center gap-2 rounded-xl border border-neutral-200 bg-white p-3"
+        className="flex flex-wrap items-center gap-2 panel p-3"
       >
         <input
           type="email"
@@ -85,12 +85,12 @@ export default function MembersView({
           placeholder="email@firma.cz"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          className="min-w-48 flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
+          className="min-w-48 flex-1 input"
         />
         <select
           value={role}
           onChange={(e) => setRole(e.target.value as Role)}
-          className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+          className="input px-2"
         >
           <option value="member">Member</option>
           {isSuperAdmin && <option value="admin">Admin</option>}
@@ -98,30 +98,30 @@ export default function MembersView({
         <button
           type="submit"
           disabled={pending}
-          className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-700 disabled:opacity-50"
+          className="btn-primary"
         >
           {pending ? "Posílám…" : "Pozvat"}
         </button>
-        {message && <p className="w-full text-sm text-neutral-600">{message}</p>}
+        {message && <p className="w-full text-sm text-ink-soft">{message}</p>}
       </form>
 
-      <div className="divide-y divide-neutral-100 rounded-xl border border-neutral-200 bg-white">
+      <div className="divide-y divide-line/70 panel">
         {members.map((member) => (
           <div key={member.user_id} className="flex items-center gap-3 px-3 py-2">
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm">
                 {member.profiles?.full_name || member.profiles?.email}
                 {member.user_id === currentUserId && (
-                  <span className="text-neutral-400"> (ty)</span>
+                  <span className="text-ink-soft/70"> (ty)</span>
                 )}
               </p>
-              <p className="truncate text-xs text-neutral-400">{member.profiles?.email}</p>
+              <p className="truncate text-xs text-ink-soft/70">{member.profiles?.email}</p>
             </div>
             {isSuperAdmin ? (
               <select
                 value={member.role}
                 onChange={(e) => changeRole(member, e.target.value as Role)}
-                className="rounded-md border border-neutral-300 px-2 py-1 text-xs"
+                className="input px-2 py-1 text-xs"
               >
                 <option value="member">member</option>
                 <option value="admin">admin</option>
@@ -131,7 +131,7 @@ export default function MembersView({
                 className={`rounded px-1.5 py-0.5 text-xs ${
                   member.role === "admin"
                     ? "bg-amber-100 text-amber-800"
-                    : "bg-neutral-100 text-neutral-500"
+                    : "bg-black/5 text-ink-soft"
                 }`}
               >
                 {member.role}
@@ -139,7 +139,7 @@ export default function MembersView({
             )}
             <button
               onClick={() => remove(member)}
-              className="rounded-md px-2 py-1 text-xs text-red-600 hover:bg-red-50"
+              className="rounded-md px-2 py-1 text-xs text-danger hover:bg-danger/10"
             >
               Odebrat
             </button>
