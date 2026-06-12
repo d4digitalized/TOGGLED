@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { dayKey, entrySeconds, fmtDuration, fmtTime } from "@/lib/format";
-import type { Task, TimeEntry } from "@/lib/types";
+import type { Project, Task, TimeEntry } from "@/lib/types";
 
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
@@ -20,6 +20,7 @@ export default function MyTimeView({
 }) {
   const supabase = createClient();
   const [entries, setEntries] = useState<TimeEntry[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -27,7 +28,9 @@ export default function MyTimeView({
   const [editStop, setEditStop] = useState("");
 
   // ruční zápis
+  const [addProject, setAddProject] = useState("");
   const [addTask, setAddTask] = useState("");
+  const [addDescription, setAddDescription] = useState("");
   const [addDate, setAddDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [addFrom, setAddFrom] = useState("09:00");
   const [addTo, setAddTo] = useState("10:00");
@@ -36,23 +39,23 @@ export default function MyTimeView({
   const load = useCallback(async () => {
     const since = new Date();
     since.setDate(since.getDate() - 30);
-    const [entriesRes, tasksRes] = await Promise.all([
+    const [entriesRes, projectsRes] = await Promise.all([
       supabase
         .from("time_entries")
-        .select("*, tasks(title, projects(name))")
+        .select("*, tasks(title), projects(name)")
         .eq("workspace_id", wsId)
         .eq("user_id", userId)
         .gte("started_at", since.toISOString())
         .order("started_at", { ascending: false }),
       supabase
-        .from("tasks")
-        .select("id, title, projects(name)")
+        .from("projects")
+        .select("*")
         .eq("workspace_id", wsId)
-        .is("completed_at", null)
-        .order("created_at", { ascending: false }),
+        .eq("archived", false)
+        .order("name"),
     ]);
     setEntries((entriesRes.data as TimeEntry[]) ?? []);
-    setTasks((tasksRes.data as unknown as Task[]) ?? []);
+    setProjects((projectsRes.data as Project[]) ?? []);
     setLoading(false);
   }, [supabase, wsId, userId]);
 
@@ -60,10 +63,27 @@ export default function MyTimeView({
     load();
   }, [load]);
 
+  // karty pro vybraný projekt (volitelná vazba ručního zápisu)
+  useEffect(() => {
+    setAddTask("");
+    if (!addProject) {
+      setTasks([]);
+      return;
+    }
+    supabase
+      .from("tasks")
+      .select("id, title")
+      .eq("project_id", addProject)
+      .is("completed_at", null)
+      .order("created_at", { ascending: false })
+      .then(({ data }) => setTasks((data as unknown as Task[]) ?? []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addProject]);
+
   async function addEntry(e: React.FormEvent) {
     e.preventDefault();
     setAddError(null);
-    if (!addTask) return;
+    if (!addProject) return;
     const started = new Date(`${addDate}T${addFrom}`);
     const stopped = new Date(`${addDate}T${addTo}`);
     if (stopped <= started) {
@@ -72,7 +92,9 @@ export default function MyTimeView({
     }
     const { error } = await supabase.from("time_entries").insert({
       workspace_id: wsId,
-      task_id: addTask,
+      project_id: addProject,
+      task_id: addTask || null,
+      description: addDescription.trim(),
       user_id: userId,
       started_at: started.toISOString(),
       stopped_at: stopped.toISOString(),
@@ -81,6 +103,7 @@ export default function MyTimeView({
       setAddError("Uložení se nezdařilo.");
       return;
     }
+    setAddDescription("");
     load();
   }
 
@@ -127,17 +150,37 @@ export default function MyTimeView({
       >
         <select
           required
-          value={addTask}
-          onChange={(e) => setAddTask(e.target.value)}
-          className="min-w-40 flex-1 rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
+          value={addProject}
+          onChange={(e) => setAddProject(e.target.value)}
+          className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm"
         >
-          <option value="">Úkol…</option>
-          {tasks.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title} ({t.projects?.name})
+          <option value="">Projekt…</option>
+          {projects.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
             </option>
           ))}
         </select>
+        <select
+          value={addTask}
+          onChange={(e) => setAddTask(e.target.value)}
+          disabled={!addProject}
+          className="rounded-md border border-neutral-300 px-2 py-1.5 text-sm disabled:opacity-50"
+        >
+          <option value="">Bez karty</option>
+          {tasks.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.title}
+            </option>
+          ))}
+        </select>
+        <input
+          type="text"
+          placeholder="Popis (volitelné)"
+          value={addDescription}
+          onChange={(e) => setAddDescription(e.target.value)}
+          className="min-w-32 flex-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm"
+        />
         <input
           type="date"
           required
@@ -198,10 +241,10 @@ export default function MyTimeView({
               {dayEntries.map((entry) => (
                 <div key={entry.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm">{entry.tasks?.title}</p>
-                    <p className="text-xs text-neutral-400">
-                      {entry.tasks?.projects?.name}
+                    <p className="truncate text-sm">
+                      {entry.tasks?.title || entry.description || "(bez popisu)"}
                     </p>
+                    <p className="text-xs text-neutral-400">{entry.projects?.name}</p>
                   </div>
                   {editingId === entry.id ? (
                     <>

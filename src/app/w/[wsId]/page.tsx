@@ -1,16 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
-import TasksView from "@/components/TasksView";
+import BoardsList from "@/components/BoardsList";
 
-export default async function TasksPage({
+export default async function BoardsPage({
   params,
 }: {
   params: Promise<{ wsId: string }>;
 }) {
   const { wsId } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const { data: isAdmin } = await supabase.rpc("is_ws_admin", { ws: wsId });
 
-  return <TasksView wsId={wsId} userId={user!.id} />;
+  return <BoardsList wsId={wsId} isAdmin={!!isAdmin} />;
 }

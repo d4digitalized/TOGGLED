@@ -27,10 +27,20 @@ export type Project = {
   archived: boolean;
 };
 
+export type BoardColumn = {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  name: string;
+  position: number;
+};
+
 export type Task = {
   id: string;
   workspace_id: string;
   project_id: string;
+  column_id: string | null;
+  position: number;
   title: string;
   description: string;
   assignee_id: string | null;
@@ -41,13 +51,26 @@ export type Task = {
   projects?: { name: string };
 };
 
-export type TimeEntry = {
+export type TaskComment = {
   id: string;
   workspace_id: string;
   task_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  profiles?: { full_name: string; email: string };
+};
+
+export type TimeEntry = {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  task_id: string | null;
   user_id: string;
+  description: string;
   started_at: string;
   stopped_at: string | null;
-  tasks?: { title: string; workspace_id?: string; project_id?: string; projects?: { name: string } };
+  tasks?: { title: string } | null;
+  projects?: { name: string };
   profiles?: { full_name: string; email: string };
 };

@@ -1,75 +1,88 @@
 # Toggled — koncept
 
-*Výstup brainstormingu 2026-06-12, druhé kolo škrtání tamtéž.*
+*Brainstorming 2026-06-12; 4. kolo: pivot na kanban nástěnky (Trello × Toggl).*
 
 ## Pitch
 
-Firemní úkolovník s měřením času (Todoist × Toggl) pro vlastní firmy: lidé mají v projektech úkoly (titulek, popis, přiřazení, termín) a u úkolu spouští timer nebo zapisují čas ručně. Admini (společníci/manažeři) vidí přehledy hodin po lidech a projektech. Vlastní data, žádné předplatné.
-
-> Změna 2026-06-12 (3. kolo): úkoly se přesunuly z v2 do MVP — časovač je vázaný na úkol, ve stylu Todoistu.
+Firemní nástroj pro vlastní firmy: každý projekt je **Trello-style kanban nástěnka**
+(libovolné sloupce, karty s popisem, přiřazením, termínem a komentáři) a nad tím
+běží **timer** — spustitelný z karty, nebo volně jen na projekt. Admini
+(společníci/manažeři) vidí přehledy hodin po lidech a projektech. Vlastní data,
+žádné předplatné.
 
 ## Pro koho a proč
 
-- **Uživatelé (members):** zaměstnanci/spolupracovníci vlastních firem (každá firma = workspace). Jeden uživatel může být ve více firmách zároveň — v UI přepínač workspace.
+- **Uživatelé (members):** zaměstnanci/spolupracovníci vlastních firem (každá firma
+  = workspace). Jeden uživatel může být ve více firmách, v UI přepínač workspace.
 - **Admini (manažeři):** vidí a spravují dění ve svém workspace; více adminů na workspace.
-- **Super-admin:** spravuje aplikaci kompletně — zakládá workspaces (firmy), jmenuje adminy a nastavuje jim možnosti. Workspace nejde založit svépomocí, jen super-adminem.
-- **Motivace stavět vlastní:** kontrola nad daty a rozšiřováním (budoucí úkoly), cena existujících nástrojů.
+- **Super-admin:** spravuje aplikaci — zakládá workspaces (firmy), jmenuje adminy.
+  Workspace nejde založit svépomocí.
+- **Motivace stavět vlastní:** kontrola nad daty a rozšiřováním, cena existujících nástrojů.
 
 ## Core loop
 
-1. Uživatel se přihlásí, (případně přepne workspace) a vidí seznam úkolů — svoje nahoře. Ad-hoc práce = quick-add úkolu (jako v Todoistu).
-2. U úkolu **spustí timer** (play) — nebo zapíše čas ručně/zpětně. Timer zastaví, záznam (kdo, úkol, start–konec) se uloží; projekt se dědí z úkolu. Hotový úkol odškrtne.
-3. Admin se kdykoli podívá na přehled: hodiny po lidech a po projektech za zvolené období.
+1. Uživatel se přihlásí a vidí dlaždice projektů (nástěnek) svého workspace.
+2. Na nástěnce přesouvá karty mezi sloupci (drag & drop), zakládá karty a sloupce,
+   v detailu karty komentuje a odškrtává hotovo.
+3. U karty spustí **timer**, nebo spustí **volný timer** (váže se na projekt +
+   volitelný popis). Zastavením vznikne záznam; čas jde zapsat i ručně zpětně.
+4. Admin se kdykoli podívá na přehled: hodiny po lidech a projektech za období.
 
 ## Scope
 
 ### MVP
-- Workspaces (multi-tenant, jedna instance); zakládá je super-admin
-- Role: **member** (trackuje svůj čas, vidí své záznamy), **admin** (správa členů a projektů, vidí vše ve workspace), **super-admin** (správa celé aplikace: workspaces, admini)
-- Členství: uživatel může být ve více workspacích, přepínač v UI
-- Pozvánky e-mailem
-- Projekty (CRUD, archivace)
-- **Úkoly** (Todoist-style): titulek, popis, projekt, přiřazení na člověka, termín, odškrtnutí; quick-add; zakládat může každý člen; pohled „Moje úkoly" / vše
-- Time entry: člověk, **úkol (povinný — projekt se dědí z úkolu)**, start–konec; živý timer u úkolu + ruční zápis a editace zpětně
-- Přehledy pro adminy: **hodiny** po lidech a po projektech, filtr období
-- Responzivní web (timer funguje i na telefonu v prohlížeči), UI česky, bez i18n
+- Workspaces (multi-tenant), role member / admin / super-admin, pozvánky e-mailem
+  — beze změny z dřívějších kol
+- Projekt = nástěnka: **libovolné sloupce** (přidat/přejmenovat/smazat/přeřadit),
+  nový projekt začíná s prázdnou nástěnkou
+- Karty: titulek, popis, přiřazení, termín, **hotovo = checkbox nezávislý na
+  sloupci**, **komentáře** (bez notifikací); zakládá kterýkoli člen
+- **Plné drag & drop** (@dnd-kit): karty mezi sloupci i v rámci sloupce, řazení sloupců
+- Timer: z karty i **volný** — volný záznam má povinný projekt + volitelný popis;
+  max. 1 běžící timer na uživatele; globální lišta s běžícím časem
+- Můj čas: záznamy po dnech, ruční zápis (projekt povinný, karta volitelná), editace
+- Přehledy pro adminy: hodiny po lidech a po projektech (přímo z `time_entries.project_id`)
+- Responzivní web, česky
 
 ### v2
-- Podúkoly, řazení/sekce v projektu, komentáře k úkolům
-- Sazby a peníze v přehledech (hodiny × sazba) — zatím Excel nad exportem
-- Agregovaný dashboard super-admina napříč firmami
-- CSV export (levný, vysoká hodnota — kandidát na rychlé doplnění)
-- Role viewer/manager, jemnější oprávnění adminů
+- Notifikace (komentáře, přiřazení karty)
+- Pohled „Moje úkoly" napříč projekty (v 4. kole odstraněn z domova)
+- Štítky, checklisty, přílohy na kartě
+- Sazby a peníze v přehledech; CSV export
+- Agregovaný dashboard super-admina napříč firmami; jemnější oprávnění
 - Offline režim timeru
 
 ### Non-goals (maybe never)
-- Tagy (kategorizaci pokrývají projekty a úkoly)
-- Záznam času bez úkolu (ad-hoc = quick-add úkolu)
-- Nativní mobilní appka
-- Fakturace přímo v appce, měny a kurzové přepočty
-- Veřejný SaaS provoz, billing, onboarding cizích firem
+- Tagy mimo nástěnku, nativní mobilní appka, fakturace, multi-měny, veřejný SaaS
 
 ## Stack a klíčová rozhodnutí
 
 | Rozhodnutí | Volba | Proč |
 |---|---|---|
-| Framework | Next.js (App Router) na Vercelu | Preferovaný stack, zero-ops hosting |
-| DB + Auth | Supabase (Postgres + Supabase Auth) | Multi-tenant přes RLS, pozvánky a e-mail+heslo out-of-the-box |
-| Tenancy | Workspace = firma; členství v tabulce `workspace_members` (user × workspace × role) | Jeden deploy pro všechny firmy, izolace přes RLS; více firem na uživatele zdarma |
-| Super-admin | Flag na profilu uživatele; RLS politiky ho propouští všude; jen on zakládá workspaces | Centrální správa appky, žádný self-serve |
-| Auth | E-mail + heslo, pozvánky od admina | Denně používaný nástroj — magic link by otravoval |
-| Úkoly v core | `time_entries.task_id` povinný FK; projekt záznamu se dědí z úkolu | Jeden mentální model (Todoist-style), čistší reporty |
+| Framework | Next.js (App Router) na Vercelu | Preferovaný stack, zero-ops |
+| DB + Auth | Supabase (Postgres + RLS + Auth) | Multi-tenant izolace, pozvánky out-of-the-box |
+| Tenancy | `workspace_members` (user × workspace × role) | Více firem na uživatele zdarma |
+| Super-admin | Flag na profilu; jen on zakládá workspaces | Centrální správa, žádný self-serve |
+| Nástěnka | `board_columns` (position float) + `tasks.column_id/position` | Fractional ordering — DnD bez přeindexování |
+| Hotovo | `tasks.completed_at` nezávislé na sloupci | Uživatelovo rozhodnutí (4. kolo) |
+| Volný timer | `time_entries.task_id` nullable, `project_id` povinný + denormalizovaný | Přehledy po projektech vždy úplné |
+| Komentáře | `task_comments` (author, body) | MVP bez notifikací |
+| DnD | @dnd-kit | Standard pro React, aktivně udržovaný |
 
 ## Rizika
 
-1. **Scope creep** — největší riziko je nedotáhnout MVP. Druhé kolo škrtání vyhodilo celé peníze (sazby, měny, Kč v přehledech). Obrana: v2 seznam je závazný, nic z něj se nepředbíhá.
-2. **Úkoly nafukují MVP** — přesun úkolů do MVP (3. kolo) zvětšil záběr; obrana: úkol je záměrně plochý (žádné podúkoly, sekce, komentáře — vše v2).
-3. **RLS s třemi úrovněmi přístupu** (member / admin / super-admin napříč workspaces) — nejsložitější technický kus MVP; navrhnout a otestovat politiky jako první.
-4. **Adopce ve firmě** — nástroj žije a umírá s tím, jestli ho lidé reálně používají. Nejlevnější test: nasadit nejdřív jen pro jednu firmu/pár lidí na 2 týdny, pak teprve rozšířit.
+1. **Scope creep** — 4 kola změn zadání (toggl → +sazby → ořez → úkoly v core →
+   kanban+komentáře). Největší riziko zůstává nedotáhnutí. Obrana: v2 seznam závazný.
+2. **DnD složitost** — nejpracnější UI kus; držet jednoduchou variantu (bez animací
+   napříč nástěnkami, bez optimistických konfliktů — poslední zápis vyhrává).
+3. **Komentáře bez notifikací** — riziko „psal jsem ti to do karty"; vědomě přijato.
+4. **Zánik pohledu napříč projekty** — člověk s úkoly v 5 projektech musí obejít
+   5 nástěnek; pokud to bude bolet, vrátí se „Moje úkoly" jako v2.
+5. **Adopce ve firmě** — nasadit nejdřív pro jednu firmu na 2 týdny, pak rozšířit.
 
 ## Otevřené otázky
 
-- Kolik lidí celkem bude nástroj používat? (ovlivňuje, jestli Supabase free tier stačí — pravděpodobně ano)
-- Mají členové vidět záznamy kolegů na společném projektu, nebo striktně jen své? (MVP: jen své; admin vidí vše)
-- Co přesně znamená „dávat možnosti adminům" — jaká oprávnění se mají dát zapínat/vypínat? (MVP: admin má fixní sadu práv; konfigurovatelnost až podle reálné potřeby)
-- Pojmenování produktu — pracovně „Toggled".
+- Vidí member nástěnky všech projektů workspace, nebo jen „svých"? (MVP: všech —
+  shoduje se s dosavadní RLS; zúžení případně v2)
+- Mazání neprázdného sloupce: MVP blokuje (karty nejdřív přesunout).
+- Pojmenování produktu — pracovně „Toggled"; produkce toggled.digitalized.cz.

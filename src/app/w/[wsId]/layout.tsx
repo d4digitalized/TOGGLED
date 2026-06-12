@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import WorkspaceHeader from "@/components/WorkspaceHeader";
+import TimerBar from "@/components/TimerBar";
 import type { Workspace } from "@/lib/types";
 
 export default async function WorkspaceLayout({
@@ -47,7 +48,10 @@ export default async function WorkspaceLayout({
         isSuperAdmin={isSuperAdmin}
         userName={profile?.full_name || profile?.email || ""}
       />
-      <main className="mx-auto max-w-4xl p-4">{children}</main>
+      <main className="mx-auto max-w-6xl space-y-4 p-4">
+        <TimerBar wsId={wsId} userId={user.id} />
+        {children}
+      </main>
     </div>
   );
 }

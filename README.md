@@ -1,6 +1,6 @@
 # Toggled
 
-Firemní úkolovník s měřením času (Todoist × Toggl). Next.js + Supabase + Vercel.
+Firemní kanban nástěnky s měřením času (Trello × Toggl). Next.js + Supabase + Vercel.
 Koncept a rozhodnutí: [docs/CONCEPT.md](docs/CONCEPT.md).
 
 ## Lokální spuštění
@@ -41,10 +41,11 @@ Koncept a rozhodnutí: [docs/CONCEPT.md](docs/CONCEPT.md).
   záložce *Členové* zve lidi a jmenuje adminy.
 - **Admin** spravuje projekty a členy svého workspace a vidí *Přehledy* (hodiny
   po lidech a projektech za období).
-- **Member** vidí úkoly (Moje / Všechny), quick-add úkolu, u úkolu spouští timer
-  (▶) nebo zapíše čas ručně na záložce *Můj čas*. Hotový úkol odškrtne.
-- Čas se váže vždy na úkol; projekt se dědí z úkolu. Běží max. jeden timer
-  na uživatele (start dalšího předchozí zastaví).
+- **Projekt = nástěnka** (Trello-style): libovolné sloupce, karty s popisem,
+  přiřazením, termínem, checkboxem hotovo a komentáři; plné drag & drop.
+- **Timer**: ▶ na kartě, nebo volný timer z lišty (váže se na projekt + popis).
+  Ruční zápis a opravy na záložce *Můj čas*. Běží max. jeden timer na uživatele
+  (start dalšího předchozí zastaví).
 
 ## Deploy na Vercel
 

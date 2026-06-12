@@ -28,7 +28,7 @@ export default function ReportsView({ wsId }: { wsId: string }) {
     const { data } = await supabase
       .from("time_entries")
       .select(
-        "id, started_at, stopped_at, user_id, profiles(full_name, email), tasks(project_id, projects(name))"
+        "id, started_at, stopped_at, user_id, profiles(full_name, email), projects(name)"
       )
       .eq("workspace_id", wsId)
       .not("stopped_at", "is", null)
@@ -50,7 +50,7 @@ export default function ReportsView({ wsId }: { wsId: string }) {
     total += seconds;
     const person = entry.profiles?.full_name || entry.profiles?.email || "?";
     byPerson.set(person, (byPerson.get(person) ?? 0) + seconds);
-    const project = entry.tasks?.projects?.name ?? "?";
+    const project = entry.projects?.name ?? "?";
     byProject.set(project, (byProject.get(project) ?? 0) + seconds);
   }
   const sorted = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] - a[1]);
