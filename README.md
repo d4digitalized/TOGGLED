@@ -48,9 +48,18 @@ Koncept a rozhodnutí: [docs/CONCEPT.md](docs/CONCEPT.md).
 
 ## Deploy na Vercel
 
-1. Pushni repo na GitHub a naimportuj do Vercelu.
-2. Nastav env proměnné z `.env.example` (`NEXT_PUBLIC_SITE_URL` = produkční doména).
-3. V Supabase přidej produkční doménu do Authentication → URL Configuration.
+Produkce: **https://toggled.digitalized.cz**
+
+1. Naimportuj repo `d4digitalized/TOGGLED` do Vercelu a v Settings → Domains
+   přidej `toggled.digitalized.cz` (DNS: CNAME na `cname.vercel-dns.com`).
+2. Nastav env proměnné z `.env.example`;
+   `NEXT_PUBLIC_SITE_URL=https://toggled.digitalized.cz`.
+3. V Supabase → Authentication → URL Configuration nastav Site URL na
+   `https://toggled.digitalized.cz` a do Redirect URLs přidej
+   `https://toggled.digitalized.cz/**` (pro lokální vývoj i
+   `http://localhost:3000/**`).
+4. V Resendu ověř doménu `digitalized.cz`, sender pozvánek pak může být
+   např. `toggled@digitalized.cz`.
 
 ## Stack
 
