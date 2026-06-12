@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { startTimer } from "@/lib/timer";
 import type { Membership, Task, TaskComment } from "@/lib/types";
@@ -27,6 +27,16 @@ export default function CardModal({
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") onClose();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
 
   const loadComments = useCallback(async () => {
     const { data } = await supabase
@@ -93,6 +103,7 @@ export default function CardModal({
       workspace_id: task.workspace_id,
       project_id: task.project_id,
       task_id: task.id,
+      task_title: task.title,
     });
     onClose();
   }
@@ -103,7 +114,12 @@ export default function CardModal({
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg space-y-4 rounded-xl bg-surface p-5 shadow-xl"
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={`Karta: ${task.title}`}
+        tabIndex={-1}
+        className="w-full max-w-lg space-y-4 rounded-xl bg-surface p-5 shadow-xl outline-none"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start gap-3">
@@ -122,6 +138,7 @@ export default function CardModal({
           />
           <button
             onClick={onClose}
+            aria-label="Zavřít kartu"
             className="rounded-md px-2 py-1 text-ink-soft/70 hover:bg-black/5"
           >
             ✕

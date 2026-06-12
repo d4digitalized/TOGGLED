@@ -67,6 +67,7 @@ export default function BoardCard({
                 e.stopPropagation();
                 onStart();
               }}
+              aria-label={`Spustit timer na kartě ${task.title}`}
               title="Spustit timer"
               className="rounded px-1 text-xs text-ink-soft/70 hover:bg-accent-soft hover:text-accent"
             >

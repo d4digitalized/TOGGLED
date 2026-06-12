@@ -8,7 +8,7 @@ export async function inviteMember(
   wsId: string,
   email: string,
   role: Role
-): Promise<{ ok?: true; error?: string }> {
+): Promise<{ ok?: true; invited?: boolean; error?: string }> {
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,6 +29,7 @@ export async function inviteMember(
     .maybeSingle();
 
   let userId = existing?.id as string | undefined;
+  const invited = !userId;
 
   if (!userId) {
     const site = process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000";
@@ -36,7 +37,10 @@ export async function inviteMember(
       redirectTo: `${site}/auth/confirm`,
     });
     if (error || !data.user) {
-      return { error: "Pozvánku se nepodařilo odeslat." };
+      return {
+        error:
+          "Pozvánkový e-mail se nepodařilo odeslat. Bez vlastního SMTP posílá Supabase max. ~2 e-maily za hodinu — zkus to později, nebo nastav SMTP (Resend) podle README.",
+      };
     }
     userId = data.user.id;
   }
@@ -50,5 +54,5 @@ export async function inviteMember(
     if (insertError.code === "23505") return { error: "Už je členem workspace." };
     return { error: "Přidání se nezdařilo. Admina může jmenovat jen super-admin." };
   }
-  return { ok: true };
+  return { ok: true, invited };
 }

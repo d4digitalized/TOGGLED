@@ -5,14 +5,40 @@ import { createClient } from "@/lib/supabase/client";
 import { entrySeconds, fmtDuration } from "@/lib/format";
 import type { TimeEntry } from "@/lib/types";
 
+function isoDay(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 function firstOfMonth(): string {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
 }
 
 function today(): string {
-  return new Date().toISOString().slice(0, 10);
+  return isoDay(new Date());
 }
+
+const PRESETS: { label: string; range: () => [string, string] }[] = [
+  {
+    label: "Tento týden",
+    range: () => {
+      const now = new Date();
+      const monday = new Date(now);
+      monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+      return [isoDay(monday), isoDay(now)];
+    },
+  },
+  { label: "Tento měsíc", range: () => [firstOfMonth(), today()] },
+  {
+    label: "Minulý měsíc",
+    range: () => {
+      const now = new Date();
+      const first = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const last = new Date(now.getFullYear(), now.getMonth(), 0);
+      return [isoDay(first), isoDay(last)];
+    },
+  },
+];
 
 export default function ReportsView({ wsId }: { wsId: string }) {
   const supabase = createClient();
@@ -72,6 +98,20 @@ export default function ReportsView({ wsId }: { wsId: string }) {
           onChange={(e) => setTo(e.target.value)}
           className="input px-2 py-1"
         />
+        <span className="hidden text-ink-soft/40 sm:inline">·</span>
+        {PRESETS.map((preset) => (
+          <button
+            key={preset.label}
+            onClick={() => {
+              const [f, t] = preset.range();
+              setFrom(f);
+              setTo(t);
+            }}
+            className="rounded-md bg-black/5 px-2 py-1 text-xs text-ink-soft hover:bg-accent-soft hover:text-accent"
+          >
+            {preset.label}
+          </button>
+        ))}
         <span className="ml-auto text-sm text-ink-soft">
           Celkem <span className="font-mono font-medium">{fmtDuration(total)} h</span>
         </span>

@@ -11,14 +11,22 @@ Koncept a rozhodnutí: [docs/CONCEPT.md](docs/CONCEPT.md).
    (nebo `supabase db push` přes Supabase CLI).
 3. **Env** — zkopíruj `.env.example` → `.env.local` a doplň URL + klíče
    (Settings → API). `SUPABASE_SERVICE_ROLE_KEY` je tajný, jen pro server.
-4. **E-mail šablona pozvánky** — v Supabase: Authentication → Email Templates →
-   *Invite user* změň odkaz na:
+4. **E-mail šablony** — v Supabase: Authentication → Email Templates uprav odkazy
+   (a klidně i texty — výchozí jsou anglicky):
 
-   ```
-   {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite
-   ```
+   - *Invite user*:
 
-   a v Authentication → URL Configuration nastav Site URL (a případně Redirect URLs)
+     ```
+     {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite
+     ```
+
+   - *Reset password* (pro „Zapomenuté heslo?" na loginu):
+
+     ```
+     {{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery
+     ```
+
+   V Authentication → URL Configuration nastav Site URL (a případně Redirect URLs)
    na adresu aplikace.
 5. **První super-admin** — zaregistruj si účet (Authentication → Users → Add user,
    nebo pozvánkou) a v SQL Editoru spusť:

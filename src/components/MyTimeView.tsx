@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { dayKey, entrySeconds, fmtDuration, fmtTime } from "@/lib/format";
+import { toast } from "@/lib/toast";
 import type { Project, Task, TimeEntry } from "@/lib/types";
 
 function toLocalInput(iso: string): string {
@@ -116,7 +117,10 @@ export default function MyTimeView({
   async function saveEdit(entry: TimeEntry) {
     const started = new Date(editStart);
     const stopped = editStop ? new Date(editStop) : null;
-    if (stopped && stopped <= started) return;
+    if (stopped && stopped <= started) {
+      toast("Konec záznamu musí být po začátku.", "error");
+      return;
+    }
     await supabase
       .from("time_entries")
       .update({

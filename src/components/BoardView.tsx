@@ -4,7 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import {
   DndContext,
   DragOverlay,
+  KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   closestCorners,
   useSensor,
   useSensors,
@@ -16,6 +18,7 @@ import {
   SortableContext,
   arrayMove,
   horizontalListSortingStrategy,
+  sortableKeyboardCoordinates,
   useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
@@ -23,6 +26,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
 import { posBetween } from "@/lib/position";
 import { startTimer } from "@/lib/timer";
+import { toast } from "@/lib/toast";
 import type { BoardColumn, Membership, Task } from "@/lib/types";
 import BoardCard from "@/components/BoardCard";
 import CardModal from "@/components/CardModal";
@@ -57,6 +61,7 @@ export default function BoardView({
   const supabase = createClient();
   const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [cards, setCards] = useState<CardsByCol>({});
+  const [orphans, setOrphans] = useState<Task[]>([]);
   const [members, setMembers] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
   const [openTask, setOpenTask] = useState<Task | null>(null);
@@ -64,9 +69,14 @@ export default function BoardView({
   const [newColumnName, setNewColumnName] = useState("");
   const [addingTo, setAddingTo] = useState<string | null>(null);
   const [newCardTitle, setNewCardTitle] = useState("");
+  const [editingCol, setEditingCol] = useState<string | null>(null);
+  const [editColName, setEditColName] = useState("");
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    // dotyk: krátké podržení odliší tažení karty od scrollování
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
   const load = useCallback(async () => {
@@ -89,13 +99,16 @@ export default function BoardView({
     const cols = (colRes.data as BoardColumn[]) ?? [];
     const tasks = (taskRes.data as Task[]) ?? [];
     const byCol: CardsByCol = {};
+    const lost: Task[] = [];
     for (const col of cols) byCol[col.id] = [];
     for (const task of tasks) {
       if (task.column_id && byCol[task.column_id]) byCol[task.column_id].push(task);
-      else if (cols[0]) byCol[cols[0].id].push(task); // karty bez sloupce → první sloupec
+      else if (cols[0]) byCol[cols[0].id].push(task); // karta bez sloupce → první sloupec
+      else lost.push(task); // žádné sloupce neexistují — karty nesmí zmizet
     }
     setColumns(cols);
     setCards(byCol);
+    setOrphans(lost);
     setMembers((memRes.data as unknown as Membership[]) ?? []);
     setLoading(false);
   }, [supabase, projectId, wsId]);
@@ -110,30 +123,45 @@ export default function BoardView({
     e.preventDefault();
     if (!newColumnName.trim()) return;
     const last = columns[columns.length - 1];
-    await supabase.from("board_columns").insert({
+    const { error } = await supabase.from("board_columns").insert({
       workspace_id: wsId,
       project_id: projectId,
       name: newColumnName.trim(),
       position: posBetween(last?.position, undefined),
     });
+    if (error) {
+      toast("Sloupec se nepodařilo přidat.", "error");
+      return;
+    }
     setNewColumnName("");
     load();
   }
 
-  async function renameColumn(col: BoardColumn) {
-    const name = prompt("Název sloupce:", col.name);
-    if (!name?.trim() || name.trim() === col.name) return;
-    await supabase.from("board_columns").update({ name: name.trim() }).eq("id", col.id);
+  function startRenameColumn(col: BoardColumn) {
+    setEditingCol(col.id);
+    setEditColName(col.name);
+  }
+
+  async function saveRenameColumn(col: BoardColumn) {
+    const name = editColName.trim();
+    setEditingCol(null);
+    if (!name || name === col.name) return;
+    const { error } = await supabase
+      .from("board_columns")
+      .update({ name })
+      .eq("id", col.id);
+    if (error) toast("Přejmenování se nepodařilo.", "error");
     load();
   }
 
   async function deleteColumn(col: BoardColumn) {
     if ((cards[col.id] ?? []).length > 0) {
-      alert("Sloupec není prázdný — nejdřív přesuň karty jinam.");
+      toast("Sloupec není prázdný — nejdřív přesuň karty jinam.", "error");
       return;
     }
     if (!confirm(`Smazat sloupec „${col.name}"?`)) return;
-    await supabase.from("board_columns").delete().eq("id", col.id);
+    const { error } = await supabase.from("board_columns").delete().eq("id", col.id);
+    if (error) toast("Smazání se nepodařilo.", "error");
     load();
   }
 
@@ -143,13 +171,17 @@ export default function BoardView({
     e.preventDefault();
     if (!newCardTitle.trim()) return;
     const list = cards[colId] ?? [];
-    await supabase.from("tasks").insert({
+    const { error } = await supabase.from("tasks").insert({
       workspace_id: wsId,
       project_id: projectId,
       column_id: colId,
       title: newCardTitle.trim(),
       position: posBetween(list[list.length - 1]?.position, undefined),
     });
+    if (error) {
+      toast("Kartu se nepodařilo přidat.", "error");
+      return;
+    }
     setNewCardTitle("");
     load();
   }
@@ -216,7 +248,14 @@ export default function BoardView({
         reordered[newIndex + 1]?.position
       );
       setColumns(reordered.map((c) => (c.id === moved.id ? { ...c, position } : c)));
-      await supabase.from("board_columns").update({ position }).eq("id", moved.id);
+      const { error } = await supabase
+        .from("board_columns")
+        .update({ position })
+        .eq("id", moved.id);
+      if (error) {
+        toast("Přesun sloupce se neuložil — obnovuji nástěnku.", "error");
+        load();
+      }
       return;
     }
 
@@ -238,17 +277,41 @@ export default function BoardView({
       t.id === activeId ? { ...t, position, column_id: colId } : t
     );
     setCards((prev) => ({ ...prev, [colId]: updated }));
-    await supabase
+    const { error } = await supabase
       .from("tasks")
       .update({ column_id: colId, position })
       .eq("id", activeId);
+    if (error) {
+      toast("Přesun karty se neuložil — obnovuji nástěnku.", "error");
+      load();
+    }
   }
 
   if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
 
   return (
     <div className="space-y-3">
-      <h1 className="text-lg font-semibold">{projectName}</h1>
+      <h1 className="font-display text-lg font-semibold">{projectName}</h1>
+
+      {orphans.length > 0 && (
+        <div className="panel space-y-2 border-amber-300 bg-amber-50 p-3">
+          <p className="text-sm text-amber-900">
+            Tyto karty nemají sloupec. Založ sloupec a karty do něj přesuň
+            přetažením, nebo je otevři a uprav.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {orphans.map((task) => (
+              <button
+                key={task.id}
+                onClick={() => setOpenTask(task)}
+                className="rounded-lg border border-amber-300 bg-surface px-2 py-1 text-sm hover:border-accent/60"
+              >
+                {task.title}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <DndContext
         sensors={sensors}
@@ -266,7 +329,12 @@ export default function BoardView({
               <SortableColumn
                 key={col.id}
                 column={col}
-                onRename={() => renameColumn(col)}
+                cardCount={(cards[col.id] ?? []).length}
+                isEditing={editingCol === col.id}
+                editName={editColName}
+                onEditName={setEditColName}
+                onStartRename={() => startRenameColumn(col)}
+                onSaveRename={() => saveRenameColumn(col)}
                 onDelete={() => deleteColumn(col)}
               >
                 <SortableContext
@@ -285,6 +353,7 @@ export default function BoardView({
                             workspace_id: wsId,
                             project_id: projectId,
                             task_id: task.id,
+                            task_title: task.title,
                           })
                         }
                       />
@@ -293,7 +362,7 @@ export default function BoardView({
                 </SortableContext>
 
                 {addingTo === col.id ? (
-                  <form onSubmit={(e) => addCard(col.id, e)} className="mt-2">
+                  <form onSubmit={(e) => addCard(col.id, e)} className="mt-2 flex gap-1">
                     <input
                       autoFocus
                       type="text"
@@ -303,6 +372,9 @@ export default function BoardView({
                       onBlur={() => !newCardTitle.trim() && setAddingTo(null)}
                       className="w-full input px-2"
                     />
+                    <button type="submit" className="btn-primary px-2">
+                      OK
+                    </button>
                   </form>
                 ) : (
                   <button
@@ -312,7 +384,7 @@ export default function BoardView({
                     }}
                     className="mt-2 w-full rounded-md px-2 py-1 text-left text-xs text-ink-soft/70 hover:bg-black/10 hover:text-ink-soft"
                   >
-                    + Karta
+                    + Přidat kartu
                   </button>
                 )}
               </SortableColumn>
@@ -322,7 +394,11 @@ export default function BoardView({
           <form onSubmit={addColumn} className="w-64 shrink-0">
             <input
               type="text"
-              placeholder="+ Nový sloupec…"
+              placeholder={
+                columns.length === 0
+                  ? "Začni prvním sloupcem, např. „K udělání“…"
+                  : "+ Nový sloupec…"
+              }
               value={newColumnName}
               onChange={(e) => setNewColumnName(e.target.value)}
               className="w-full rounded-lg border border-dashed border-line bg-transparent px-3 py-2 text-sm placeholder:text-ink-soft/70"
@@ -357,14 +433,24 @@ export default function BoardView({
 
 function SortableColumn({
   column,
-  children,
-  onRename,
+  cardCount,
+  isEditing,
+  editName,
+  onEditName,
+  onStartRename,
+  onSaveRename,
   onDelete,
+  children,
 }: {
   column: BoardColumn;
-  children: React.ReactNode;
-  onRename: () => void;
+  cardCount: number;
+  isEditing: boolean;
+  editName: string;
+  onEditName: (v: string) => void;
+  onStartRename: () => void;
+  onSaveRename: () => void;
   onDelete: () => void;
+  children: React.ReactNode;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: colDndId(column.id), data: { type: "column" } });
@@ -379,23 +465,44 @@ function SortableColumn({
         <button
           {...attributes}
           {...listeners}
+          aria-label={`Přetáhnout sloupec ${column.name}`}
           className="cursor-grab rounded px-1 text-ink-soft/70 hover:bg-black/10"
-          title="Přetáhnout sloupec"
         >
           ⠿
         </button>
-        <span className="flex-1 truncate text-sm font-semibold">{column.name}</span>
-        <button
-          onClick={onRename}
-          className="rounded px-1 text-xs text-ink-soft/70 hover:bg-black/10"
-          title="Přejmenovat"
-        >
-          ✎
-        </button>
+        {isEditing ? (
+          <form
+            className="flex-1"
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSaveRename();
+            }}
+          >
+            <input
+              autoFocus
+              type="text"
+              value={editName}
+              onChange={(e) => onEditName(e.target.value)}
+              onBlur={onSaveRename}
+              className="w-full input px-1 py-0.5 text-sm"
+            />
+          </form>
+        ) : (
+          <button
+            onClick={onStartRename}
+            className="flex-1 truncate rounded px-1 text-left text-sm font-semibold hover:bg-black/5"
+            title="Kliknutím přejmenuješ"
+          >
+            {column.name}
+            <span className="ml-1.5 text-xs font-normal text-ink-soft/70">
+              {cardCount}
+            </span>
+          </button>
+        )}
         <button
           onClick={onDelete}
+          aria-label={`Smazat sloupec ${column.name}`}
           className="rounded px-1 text-xs text-ink-soft/70 hover:bg-black/10"
-          title="Smazat sloupec"
         >
           ×
         </button>

@@ -1,4 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { entrySeconds, fmtClock } from "@/lib/format";
+import { toast } from "@/lib/toast";
 
 export const TIMER_CHANGED_EVENT = "toggled:timer-changed";
 
@@ -14,10 +16,11 @@ export async function startTimer(
     workspace_id: string;
     project_id: string;
     task_id?: string | null;
+    task_title?: string;
     description?: string;
   }
 ) {
-  await stopRunningTimer(supabase, userId, false);
+  const stoppedPrevious = await stopRunningTimer(supabase, userId, { silent: true });
   const { error } = await supabase.from("time_entries").insert({
     workspace_id: entry.workspace_id,
     project_id: entry.project_id,
@@ -25,20 +28,45 @@ export async function startTimer(
     description: entry.description ?? "",
     user_id: userId,
   });
+  if (error) {
+    toast("Timer se nepodařilo spustit.", "error");
+  } else if (stoppedPrevious) {
+    toast("Předchozí timer zastaven a uložen, měřím nový.");
+  } else {
+    toast(entry.task_title ? `Timer běží: ${entry.task_title}` : "Timer běží.");
+  }
   notifyTimerChanged();
   return error;
 }
 
+/** Zastaví běžící timer. Vrací true, pokud nějaký běžel a byl uložen. */
 export async function stopRunningTimer(
   supabase: SupabaseClient,
   userId: string,
-  notify = true
-) {
+  opts?: { silent?: boolean }
+): Promise<boolean> {
+  const { data: running } = await supabase
+    .from("time_entries")
+    .select("id, started_at")
+    .eq("user_id", userId)
+    .is("stopped_at", null)
+    .maybeSingle();
+
+  if (!running) return false;
+
+  const stoppedAt = new Date().toISOString();
   const { error } = await supabase
     .from("time_entries")
-    .update({ stopped_at: new Date().toISOString() })
-    .eq("user_id", userId)
-    .is("stopped_at", null);
-  if (notify) notifyTimerChanged();
-  return error;
+    .update({ stopped_at: stoppedAt })
+    .eq("id", running.id);
+
+  if (!opts?.silent) {
+    if (error) {
+      toast("Timer se nepodařilo zastavit.", "error");
+    } else {
+      toast(`Záznam uložen (${fmtClock(entrySeconds(running.started_at, stoppedAt))}).`);
+    }
+    notifyTimerChanged();
+  }
+  return !error;
 }

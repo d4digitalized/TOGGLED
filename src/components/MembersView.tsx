@@ -41,7 +41,12 @@ export default function MembersView({
     setMessage(null);
     startTransition(async () => {
       const result = await inviteMember(wsId, email, role);
-      setMessage(result.error ?? "Pozvánka odeslána / člen přidán.");
+      setMessage(
+        result.error ??
+          (result.invited
+            ? `Pozvánka odeslána na ${email.trim()}. Po nastavení hesla se tu objeví.`
+            : "Účet už existoval — člen byl přidán rovnou, bez e-mailu.")
+      );
       if (result.ok) {
         setEmail("");
         load();
