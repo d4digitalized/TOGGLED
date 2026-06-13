@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import WorkspaceHeader from "@/components/WorkspaceHeader";
+import Sidebar from "@/components/Sidebar";
 import TimerBar from "@/components/TimerBar";
 import type { Workspace } from "@/lib/types";
 
@@ -40,18 +40,18 @@ export default async function WorkspaceLayout({
   if (!workspaces.some((w) => w.id === ws.id)) workspaces.unshift(ws);
 
   return (
-    <div className="min-h-screen bg-paper">
-      <WorkspaceHeader
+    <div className="flex min-h-screen bg-paper">
+      <Sidebar
         wsId={wsId}
         workspaces={workspaces}
         isAdmin={isAdmin}
         isSuperAdmin={isSuperAdmin}
         userName={profile?.full_name || profile?.email || ""}
       />
-      <main className="mx-auto max-w-6xl space-y-4 p-4">
+      <div className="flex min-w-0 flex-1 flex-col">
         <TimerBar wsId={wsId} userId={user.id} />
-        {children}
-      </main>
+        <main className="flex-1 space-y-4 p-4">{children}</main>
+      </div>
     </div>
   );
 }

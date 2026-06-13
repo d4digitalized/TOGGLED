@@ -3,7 +3,13 @@
 import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { entrySeconds, fmtClock } from "@/lib/format";
-import { startTimer, stopRunningTimer, TIMER_CHANGED_EVENT } from "@/lib/timer";
+import {
+  startTimer,
+  stopRunningTimer,
+  updateRunningEntry,
+  TIMER_CHANGED_EVENT,
+} from "@/lib/timer";
+import ProjectPicker from "@/components/ProjectPicker";
 import type { Project, TimeEntry } from "@/lib/types";
 
 export default function TimerBar({
@@ -16,9 +22,8 @@ export default function TimerBar({
   const supabase = createClient();
   const [running, setRunning] = useState<TimeEntry | null>(null);
   const [projects, setProjects] = useState<Project[]>([]);
-  const [freeOpen, setFreeOpen] = useState(false);
-  const [freeProject, setFreeProject] = useState("");
-  const [freeDescription, setFreeDescription] = useState("");
+  const [description, setDescription] = useState("");
+  const [idleProject, setIdleProject] = useState("");
   const [, setTick] = useState(0);
 
   const load = useCallback(async () => {
@@ -43,116 +48,116 @@ export default function TimerBar({
   }, [load]);
 
   useEffect(() => {
+    supabase
+      .from("projects")
+      .select("*")
+      .eq("workspace_id", wsId)
+      .eq("archived", false)
+      .order("name")
+      .then(({ data }) => setProjects((data as Project[]) ?? []));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wsId]);
+
+  useEffect(() => {
     if (!running) return;
     const id = setInterval(() => setTick((t) => t + 1), 1000);
     return () => clearInterval(id);
   }, [running]);
 
-  async function openFree() {
-    if (projects.length === 0) {
-      const { data } = await supabase
-        .from("projects")
-        .select("*")
-        .eq("workspace_id", wsId)
-        .eq("archived", false)
-        .order("name");
-      setProjects((data as Project[]) ?? []);
-    }
-    setFreeOpen(true);
-  }
+  // popis editujeme lokálně, do DB se ukládá až na blur/Enter
+  const runningId = running?.id;
+  useEffect(() => {
+    setDescription(running?.description ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [runningId]);
 
-  async function startFree(e: React.FormEvent) {
-    e.preventDefault();
-    if (!freeProject) return;
+  const isTaskEntry = !!running?.task_id;
+
+  async function start() {
     await startTimer(supabase, userId, {
       workspace_id: wsId,
-      project_id: freeProject,
-      description: freeDescription.trim(),
+      project_id: idleProject || null,
+      description: description.trim(),
     });
-    setFreeOpen(false);
-    setFreeDescription("");
+    setIdleProject("");
   }
 
-  if (running) {
-    const label =
-      running.tasks?.title ||
-      running.description ||
-      running.projects?.name ||
-      "Měřím čas";
-    return (
-      <div className="sticky top-16 z-30 flex items-center gap-3 rounded-xl border border-accent/40 bg-accent-soft p-3 shadow-sm">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-accent" />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{label}</p>
-          <p className="truncate text-xs text-ink-soft">
-            {running.projects?.name}
-          </p>
-        </div>
-        <span className="font-mono text-lg font-semibold tabular-nums text-brass">
-          {fmtClock(entrySeconds(running.started_at, null))}
-        </span>
-        <button
-          onClick={() => stopRunningTimer(supabase, userId)}
-          aria-label="Zastavit timer a uložit záznam"
-          className="rounded-lg bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-500"
-        >
-          Zastavit
-        </button>
-      </div>
-    );
-  }
-
-  if (freeOpen) {
-    return (
-      <form
-        onSubmit={startFree}
-        className="flex flex-wrap items-center gap-2 panel p-3"
-      >
-        <select
-          required
-          value={freeProject}
-          onChange={(e) => setFreeProject(e.target.value)}
-          className="input px-2"
-        >
-          <option value="">Projekt…</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <input
-          type="text"
-          placeholder="Na čem děláš? (volitelné)"
-          value={freeDescription}
-          onChange={(e) => setFreeDescription(e.target.value)}
-          className="min-w-40 flex-1 input"
-        />
-        <button
-          type="submit"
-          className="btn-primary"
-        >
-          ▶ Start
-        </button>
-        <button
-          type="button"
-          onClick={() => setFreeOpen(false)}
-          className="rounded-md px-2 py-1.5 text-sm text-ink-soft hover:bg-black/5"
-        >
-          Zrušit
-        </button>
-      </form>
-    );
+  async function saveDescription() {
+    if (!running || description.trim() === running.description) return;
+    await updateRunningEntry(supabase, running.id, {
+      description: description.trim(),
+    });
   }
 
   return (
-    <div className="flex justify-end">
-      <button
-        onClick={openFree}
-        className="rounded-md border border-line bg-surface px-3 py-1.5 text-sm text-ink-soft hover:border-accent/60 hover:text-accent"
-      >
-        ▶ Spustit volný timer
-      </button>
-    </div>
+    <header className="sticky top-0 z-40 border-b border-line bg-surface/90 backdrop-blur">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-2.5">
+        {isTaskEntry && running ? (
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-medium">
+              {running.tasks?.title || running.description || "Měřím čas"}
+            </p>
+            <p className="truncate text-xs text-ink-soft">
+              {running.projects?.name}
+            </p>
+          </div>
+        ) : (
+          <>
+            <input
+              type="text"
+              placeholder="Na čem děláš?"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onBlur={running ? saveDescription : undefined}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                if (running) e.currentTarget.blur();
+                else start();
+              }}
+              className="input-quiet -ml-2 min-w-40 flex-1 px-2 py-1.5 text-base"
+            />
+            <ProjectPicker
+              projects={projects}
+              value={running ? running.project_id : idleProject || null}
+              onChange={(projectId) =>
+                running
+                  ? updateRunningEntry(supabase, running.id, {
+                      project_id: projectId,
+                    })
+                  : setIdleProject(projectId ?? "")
+              }
+            />
+          </>
+        )}
+
+        <span
+          className={`font-mono text-lg font-semibold tabular-nums ${
+            running ? "text-brass" : "text-ink-soft/50"
+          }`}
+        >
+          {running ? fmtClock(entrySeconds(running.started_at, null)) : "0:00:00"}
+        </span>
+
+        {running ? (
+          <button
+            onClick={() => stopRunningTimer(supabase, userId)}
+            aria-label="Zastavit timer a uložit záznam"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-white shadow-sm hover:bg-red-500"
+          >
+            <span className="block h-3.5 w-3.5 rounded-[2px] bg-current" />
+          </button>
+        ) : (
+          <button
+            onClick={start}
+            aria-label="Spustit timer"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-sm hover:bg-[#0a5d54]"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="ml-0.5 h-4 w-4" aria-hidden>
+              <path d="M7 4.5v15l13-7.5z" />
+            </svg>
+          </button>
+        )}
+      </div>
+    </header>
   );
 }

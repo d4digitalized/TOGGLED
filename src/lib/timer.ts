@@ -14,7 +14,7 @@ export async function startTimer(
   userId: string,
   entry: {
     workspace_id: string;
-    project_id: string;
+    project_id?: string | null;
     task_id?: string | null;
     task_title?: string;
     description?: string;
@@ -23,7 +23,7 @@ export async function startTimer(
   const stoppedPrevious = await stopRunningTimer(supabase, userId, { silent: true });
   const { error } = await supabase.from("time_entries").insert({
     workspace_id: entry.workspace_id,
-    project_id: entry.project_id,
+    project_id: entry.project_id ?? null,
     task_id: entry.task_id ?? null,
     description: entry.description ?? "",
     user_id: userId,
@@ -35,6 +35,21 @@ export async function startTimer(
   } else {
     toast(entry.task_title ? `Timer běží: ${entry.task_title}` : "Timer běží.");
   }
+  notifyTimerChanged();
+  return error;
+}
+
+/** Upraví projekt či popis běžícího záznamu. */
+export async function updateRunningEntry(
+  supabase: SupabaseClient,
+  entryId: string,
+  patch: { project_id?: string | null; description?: string }
+) {
+  const { error } = await supabase
+    .from("time_entries")
+    .update(patch)
+    .eq("id", entryId);
+  if (error) toast("Změnu se nepodařilo uložit.", "error");
   notifyTimerChanged();
   return error;
 }

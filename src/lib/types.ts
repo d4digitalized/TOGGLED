@@ -64,13 +64,13 @@ export type TaskComment = {
 export type TimeEntry = {
   id: string;
   workspace_id: string;
-  project_id: string;
+  project_id: string | null;
   task_id: string | null;
   user_id: string;
   description: string;
   started_at: string;
   stopped_at: string | null;
   tasks?: { title: string } | null;
-  projects?: { name: string };
+  projects?: { name: string } | null;
   profiles?: { full_name: string; email: string };
 };

@@ -4,7 +4,11 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { dayKey, entrySeconds, fmtDuration, fmtTime } from "@/lib/format";
 import { toast } from "@/lib/toast";
+import Picker from "@/components/Picker";
+import ProjectPicker from "@/components/ProjectPicker";
 import type { Project, Task, TimeEntry } from "@/lib/types";
+
+const CARD_ICON = "M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zM7 9h10M7 13h6";
 
 function toLocalInput(iso: string): string {
   const d = new Date(iso);
@@ -84,7 +88,10 @@ export default function MyTimeView({
   async function addEntry(e: React.FormEvent) {
     e.preventDefault();
     setAddError(null);
-    if (!addProject) return;
+    if (!addProject) {
+      setAddError("Vyber projekt.");
+      return;
+    }
     const started = new Date(`${addDate}T${addFrom}`);
     const stopped = new Date(`${addDate}T${addTo}`);
     if (stopped <= started) {
@@ -150,70 +157,65 @@ export default function MyTimeView({
     <div className="space-y-4">
       <form
         onSubmit={addEntry}
-        className="flex flex-wrap items-center gap-2 panel p-3"
+        className="flex flex-wrap items-center gap-x-1 gap-y-2 panel py-2 pl-4 pr-2"
       >
-        <select
-          required
-          value={addProject}
-          onChange={(e) => setAddProject(e.target.value)}
-          className="input px-2"
-        >
-          <option value="">Projekt…</option>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-        <select
-          value={addTask}
-          onChange={(e) => setAddTask(e.target.value)}
-          disabled={!addProject}
-          className="input px-2 disabled:opacity-50"
-        >
-          <option value="">Bez karty</option>
-          {tasks.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.title}
-            </option>
-          ))}
-        </select>
         <input
           type="text"
           placeholder="Popis (volitelné)"
           value={addDescription}
           onChange={(e) => setAddDescription(e.target.value)}
-          className="min-w-32 flex-1 input"
+          className="input-quiet -ml-2 min-w-40 flex-1 px-2 py-1.5 text-sm"
         />
+        <span className="mx-1 hidden h-6 w-px bg-line sm:block" aria-hidden />
+        <ProjectPicker
+          projects={projects}
+          value={addProject || null}
+          onChange={(id) => setAddProject(id ?? "")}
+          align="left"
+        />
+        <Picker
+          options={[
+            { id: null, label: "Bez karty" },
+            ...tasks.map((t) => ({ id: t.id as string | null, label: t.title })),
+          ]}
+          value={addTask || null}
+          onChange={(id) => setAddTask(id ?? "")}
+          placeholder="Karta"
+          iconPath={CARD_ICON}
+          ariaLabel="Karta"
+          align="left"
+          disabled={!addProject}
+        />
+        <span className="mx-1 hidden h-6 w-px bg-line sm:block" aria-hidden />
         <input
           type="date"
           required
           value={addDate}
           onChange={(e) => setAddDate(e.target.value)}
-          className="input px-2 py-1"
+          aria-label="Datum"
+          className="rounded-lg bg-transparent px-2 py-1.5 text-sm text-ink-soft hover:bg-black/5"
         />
         <input
           type="time"
           required
           value={addFrom}
           onChange={(e) => setAddFrom(e.target.value)}
-          className="input px-2 py-1"
+          aria-label="Začátek"
+          className="rounded-lg bg-transparent px-2 py-1.5 text-sm text-ink-soft hover:bg-black/5"
         />
-        <span className="text-ink-soft/70">–</span>
+        <span className="text-ink-soft/50">–</span>
         <input
           type="time"
           required
           value={addTo}
           onChange={(e) => setAddTo(e.target.value)}
-          className="input px-2 py-1"
+          aria-label="Konec"
+          className="rounded-lg bg-transparent px-2 py-1.5 text-sm text-ink-soft hover:bg-black/5"
         />
-        <button
-          type="submit"
-          className="btn-primary"
-        >
+        <button type="submit" className="btn-primary ml-2">
           Zapsat čas
         </button>
-        {addError && <p className="w-full text-sm text-red-600">{addError}</p>}
+        {addError && <p className="w-full text-sm text-danger">{addError}</p>}
       </form>
 
       {entries.length === 0 && (
@@ -248,7 +250,9 @@ export default function MyTimeView({
                     <p className="truncate text-sm">
                       {entry.tasks?.title || entry.description || "(bez popisu)"}
                     </p>
-                    <p className="text-xs text-ink-soft/70">{entry.projects?.name}</p>
+                    <p className="text-xs text-ink-soft/70">
+                      {entry.projects?.name ?? "Bez projektu"}
+                    </p>
                   </div>
                   {editingId === entry.id ? (
                     <>

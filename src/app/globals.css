@@ -99,6 +99,18 @@ body {
   .input::placeholder {
     color: color-mix(in srgb, var(--ink-soft) 60%, transparent);
   }
+  /* tichý input (timer, ruční zápis) — fokus jemným podbarvením místo obrysu */
+  .input-quiet {
+    border-radius: 0.5rem;
+    background: transparent;
+  }
+  .input-quiet::placeholder {
+    color: color-mix(in srgb, var(--ink-soft) 50%, transparent);
+  }
+  .input-quiet:focus-visible {
+    outline: none;
+    background: rgb(0 0 0 / 0.045);
+  }
   .panel {
     border-radius: 0.75rem;
     border: 1px solid var(--line);

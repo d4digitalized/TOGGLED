@@ -76,7 +76,7 @@ export default function ReportsView({ wsId }: { wsId: string }) {
     total += seconds;
     const person = entry.profiles?.full_name || entry.profiles?.email || "?";
     byPerson.set(person, (byPerson.get(person) ?? 0) + seconds);
-    const project = entry.projects?.name ?? "?";
+    const project = entry.projects?.name ?? "Bez projektu";
     byProject.set(project, (byProject.get(project) ?? 0) + seconds);
   }
   const sorted = (m: Map<string, number>) => [...m.entries()].sort((a, b) => b[1] - a[1]);

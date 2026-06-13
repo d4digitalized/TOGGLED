@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireSuperAdmin } from "@/lib/auth";
 import WorkspacesAdmin from "@/components/WorkspacesAdmin";
+import InviteToWorkspacesAdmin from "@/components/InviteToWorkspacesAdmin";
 
 export default async function AdminPage() {
   await requireSuperAdmin();
@@ -19,10 +20,14 @@ export default async function AdminPage() {
         </div>
       </header>
       <main className="mx-auto max-w-4xl space-y-4 p-4">
-        <h1 className="text-lg font-semibold">Workspaces (firmy)</h1>
+        <h1 className="text-lg font-semibold">Pozvat uživatele do firem</h1>
         <p className="text-sm text-ink-soft">
-          Členy a adminy spravuješ uvnitř workspace na záložce Členové.
+          Jeden e-mail, výběr více firem najednou. Jednotlivě členy spravuješ
+          uvnitř workspace na záložce Členové.
         </p>
+        <InviteToWorkspacesAdmin />
+
+        <h1 className="text-lg font-semibold">Workspaces (firmy)</h1>
         <WorkspacesAdmin />
       </main>
     </div>
