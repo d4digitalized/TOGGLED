@@ -5,6 +5,10 @@ export type Profile = {
   email: string;
   full_name: string;
   is_super_admin: boolean;
+  /** 1–3 písmena; prázdné = odvodit ze jména */
+  avatar_initials?: string;
+  /** #rrggbb; prázdné = odvodit z id */
+  avatar_color?: string;
 };
 
 export type Workspace = {
@@ -105,5 +109,10 @@ export type TimeEntry = {
   stopped_at: string | null;
   tasks?: { title: string } | null;
   projects?: { name: string } | null;
-  profiles?: { full_name: string; email: string };
+  profiles?: {
+    full_name: string;
+    email: string;
+    avatar_initials?: string;
+    avatar_color?: string;
+  };
 };

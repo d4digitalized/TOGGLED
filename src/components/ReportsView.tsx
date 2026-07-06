@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { entrySeconds, fmtDate, fmtDuration, fmtTime } from "@/lib/format";
 import { toast } from "@/lib/toast";
 import ProjectPicker, { ProjectDot } from "@/components/ProjectPicker";
+import Avatar from "@/components/Avatar";
 import type { Project, TimeEntry } from "@/lib/types";
 
 function isoDay(d: Date): string {
@@ -42,7 +43,13 @@ const PRESETS: { label: string; range: () => [string, string] }[] = [
   },
 ];
 
-type Agg = { id: string | null; name: string; seconds: number; count: number };
+type Agg = {
+  id: string | null;
+  name: string;
+  seconds: number;
+  count: number;
+  profile?: TimeEntry["profiles"];
+};
 type Detail = { kind: "person" | "project"; id: string | null; name: string };
 
 export default function ReportsView({ wsId }: { wsId: string }) {
@@ -63,7 +70,7 @@ export default function ReportsView({ wsId }: { wsId: string }) {
     const { data } = await supabase
       .from("time_entries")
       .select(
-        "id, started_at, stopped_at, user_id, project_id, description, profiles(full_name, email), projects(name), tasks(title)"
+        "id, started_at, stopped_at, user_id, project_id, description, profiles(full_name, email, avatar_initials, avatar_color), projects(name), tasks(title)"
       )
       .eq("workspace_id", wsId)
       .not("stopped_at", "is", null)
@@ -128,6 +135,7 @@ export default function ReportsView({ wsId }: { wsId: string }) {
       name: personName,
       seconds: 0,
       count: 0,
+      profile: entry.profiles,
     };
     person.seconds += seconds;
     person.count += 1;
@@ -261,7 +269,15 @@ export default function ReportsView({ wsId }: { wsId: string }) {
                         >
                           <path d="m9 6 6 6-6 6" />
                         </svg>
-                        {kind === "project" && <ProjectDot id={row.id} />}
+                        {kind === "project" ? (
+                          <ProjectDot id={row.id} />
+                        ) : (
+                          <Avatar
+                            profile={row.profile}
+                            colorKey={row.id ?? "?"}
+                            size="sm"
+                          />
+                        )}
                         <span className="min-w-0 flex-1 truncate">{row.name}</span>
                         <span className="text-xs text-ink-soft/60">
                           {row.count}×
@@ -283,7 +299,15 @@ export default function ReportsView({ wsId }: { wsId: string }) {
         <div className="panel">
           <div className="flex flex-wrap items-center gap-2 border-b border-line/70 px-3 py-2">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
-              {detail.kind === "project" && <ProjectDot id={detail.id} />}
+              {detail.kind === "project" ? (
+                <ProjectDot id={detail.id} />
+              ) : (
+                <Avatar
+                  profile={detailEntries[0]?.profiles}
+                  colorKey={detail.id ?? "?"}
+                  size="sm"
+                />
+              )}
               <span>
                 {detail.kind === "person" ? "Záznamy — " : "Záznamy projektu — "}
                 {detail.name}

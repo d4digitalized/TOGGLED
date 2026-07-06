@@ -47,6 +47,7 @@ export default async function WorkspaceLayout({
         isAdmin={isAdmin}
         isSuperAdmin={isSuperAdmin}
         userName={profile?.full_name || profile?.email || ""}
+        userProfile={profile}
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <TimerBar wsId={wsId} userId={user.id} />

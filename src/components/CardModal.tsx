@@ -6,6 +6,7 @@ import { startTimer } from "@/lib/timer";
 import { toast } from "@/lib/toast";
 import { PRIORITIES, RECURRENCE_OPTIONS, priorityColor } from "@/lib/priority";
 import { projectColor } from "@/components/ProjectPicker";
+import Avatar from "@/components/Avatar";
 import type { Label, Membership, Recurrence, Task, TaskComment } from "@/lib/types";
 
 export default function CardModal({
@@ -327,12 +328,13 @@ export default function CardModal({
                 key={m.user_id}
                 onClick={() => toggleAssignee(m.user_id)}
                 aria-pressed={on}
-                className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                className={`inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-2 text-xs transition-colors ${
                   on
                     ? "border-transparent bg-accent text-white"
                     : "border-line text-ink-soft hover:border-ink-soft/40"
                 }`}
               >
+                <Avatar profile={m.profiles} colorKey={m.user_id} size="xs" />
                 {name}
               </button>
             );

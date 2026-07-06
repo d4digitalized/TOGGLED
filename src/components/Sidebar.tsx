@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import type { Workspace } from "@/lib/types";
+import Avatar from "@/components/Avatar";
+import type { Profile, Workspace } from "@/lib/types";
 
 const COLLAPSED_KEY = "toggled:sidebar-collapsed";
 
@@ -45,12 +46,14 @@ export default function Sidebar({
   isAdmin,
   isSuperAdmin,
   userName,
+  userProfile,
 }: {
   wsId: string;
   workspaces: Workspace[];
   isAdmin: boolean;
   isSuperAdmin: boolean;
   userName: string;
+  userProfile?: Profile | null;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -204,12 +207,11 @@ export default function Sidebar({
           collapsed ? "flex-col" : ""
         }`}
       >
-        <span
-          title={userName}
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent-soft text-xs font-semibold text-accent"
-        >
-          {(userName || "?").charAt(0).toUpperCase()}
-        </span>
+        <Avatar
+          profile={userProfile ?? { full_name: userName }}
+          colorKey={userProfile?.id ?? userName ?? "?"}
+          size="md"
+        />
         {!collapsed && (
           <span className="min-w-0 flex-1 truncate text-sm text-ink-soft">
             {userName}

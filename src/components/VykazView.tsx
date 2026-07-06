@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { entrySeconds, fmtDuration, fmtTime } from "@/lib/format";
 import { ProjectDot } from "@/components/ProjectPicker";
+import Avatar from "@/components/Avatar";
 import type { TimeEntry } from "@/lib/types";
 
 type Props = {
@@ -49,7 +50,12 @@ function periodLabel(from: string, to: string): string {
 export default function VykazView({ wsId, userId, from, to, rate, unit }: Props) {
   const supabase = createClient();
   const [entries, setEntries] = useState<TimeEntry[]>([]);
-  const [person, setPerson] = useState<{ full_name: string; email: string } | null>(null);
+  const [person, setPerson] = useState<{
+    full_name: string;
+    email: string;
+    avatar_initials?: string;
+    avatar_color?: string;
+  } | null>(null);
   const [wsName, setWsName] = useState("");
   const [loading, setLoading] = useState(true);
 
@@ -66,7 +72,11 @@ export default function VykazView({ wsId, userId, from, to, rate, unit }: Props)
         .gte("started_at", new Date(`${from}T00:00`).toISOString())
         .lt("started_at", toExclusive.toISOString())
         .order("started_at", { ascending: true }),
-      supabase.from("profiles").select("full_name, email").eq("id", userId).single(),
+      supabase
+        .from("profiles")
+        .select("full_name, email, avatar_initials, avatar_color")
+        .eq("id", userId)
+        .single(),
       supabase.from("workspaces").select("name").eq("id", wsId).single(),
     ]);
     setEntries((entriesRes.data as unknown as TimeEntry[]) ?? []);
@@ -123,7 +133,8 @@ export default function VykazView({ wsId, userId, from, to, rate, unit }: Props)
 
         <dl className="mt-4 grid grid-cols-[auto_1fr] gap-x-6 gap-y-1 text-sm">
           <dt className="text-ink-soft">Pracovník</dt>
-          <dd className="font-medium">
+          <dd className="flex items-center gap-2 font-medium">
+            <Avatar profile={person} colorKey={userId} size="sm" />
             {personName}
             {person?.full_name && person?.email ? (
               <span className="font-normal text-ink-soft"> · {person.email}</span>

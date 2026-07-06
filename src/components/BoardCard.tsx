@@ -4,15 +4,8 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { priorityColor } from "@/lib/priority";
 import { projectColor } from "@/components/ProjectPicker";
+import Avatar from "@/components/Avatar";
 import type { Label, Membership, Task } from "@/lib/types";
-
-function initialsOf(name: string): string {
-  return name
-    .split(/[\s@]+/)
-    .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase())
-    .join("");
-}
 
 export default function BoardCard({
   task,
@@ -39,8 +32,7 @@ export default function BoardCard({
     !isDone && task.due_date && task.due_date < new Date().toISOString().slice(0, 10);
   const assignees = assigneeIds
     .map((id) => members.find((m) => m.user_id === id))
-    .filter(Boolean)
-    .map((m) => m!.profiles?.full_name || m!.profiles?.email || "?");
+    .filter((m): m is Membership => !!m);
   const flag = priorityColor(task.priority ?? 4);
 
   return (
@@ -106,14 +98,15 @@ export default function BoardCard({
           {task.description && <span className="text-xs text-ink-soft/50">≡</span>}
           <span className="flex-1" />
           {assignees.length > 0 && (
-            <span className="flex -space-x-1.5" title={assignees.join(", ")}>
-              {assignees.slice(0, 3).map((name, i) => (
-                <span
-                  key={i}
-                  className="flex h-5 w-5 items-center justify-center rounded-full border border-surface bg-black/10 text-[10px] font-medium text-ink-soft"
-                >
-                  {initialsOf(name)}
-                </span>
+            <span className="flex -space-x-1.5">
+              {assignees.slice(0, 3).map((m) => (
+                <Avatar
+                  key={m.user_id}
+                  profile={m.profiles}
+                  colorKey={m.user_id}
+                  size="sm"
+                  className="border border-surface"
+                />
               ))}
               {assignees.length > 3 && (
                 <span className="flex h-5 w-5 items-center justify-center rounded-full border border-surface bg-black/10 text-[9px] font-medium text-ink-soft">

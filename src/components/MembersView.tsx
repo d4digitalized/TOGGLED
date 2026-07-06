@@ -4,7 +4,21 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { inviteMember, listAddablePortalUsers } from "@/app/actions/members";
 import Picker from "@/components/Picker";
+import Avatar, { avatarInitials } from "@/components/Avatar";
+import { toast } from "@/lib/toast";
 import type { Membership, Role } from "@/lib/types";
+
+/* stejná paleta jako tečky projektů — nabídka pro barvu avataru */
+const AVATAR_COLORS = [
+  "#0e7569",
+  "#b45309",
+  "#0369a1",
+  "#be185d",
+  "#6d28d9",
+  "#4d7c0f",
+  "#b91c1c",
+  "#475569",
+];
 
 const USER_ICON =
   "M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z";
@@ -30,12 +44,19 @@ export default function MembersView({
   const [message, setMessage] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [pending, startTransition] = useTransition();
+  // admin editace profilu člena (jméno, iniciály, barva)
+  const [editId, setEditId] = useState<string | null>(null);
+  const [eName, setEName] = useState("");
+  const [eInitials, setEInitials] = useState("");
+  const [eColor, setEColor] = useState("");
 
   const load = useCallback(async () => {
     const [{ data }, addable] = await Promise.all([
       supabase
         .from("workspace_members")
-        .select("user_id, role, profiles(id, email, full_name, is_super_admin)")
+        .select(
+          "user_id, role, profiles(id, email, full_name, is_super_admin, avatar_initials, avatar_color)"
+        )
         .eq("workspace_id", wsId)
         .order("role"),
       listAddablePortalUsers(wsId),
@@ -83,6 +104,31 @@ export default function MembersView({
       .eq("workspace_id", wsId)
       .eq("user_id", member.user_id);
     if (error) setMessage("Roli může měnit jen super-admin.");
+    load();
+  }
+
+  function startEdit(member: Membership) {
+    setEditId(member.user_id);
+    setEName(member.profiles?.full_name ?? "");
+    setEInitials(member.profiles?.avatar_initials ?? "");
+    setEColor(member.profiles?.avatar_color ?? "");
+  }
+
+  async function saveEdit(member: Membership) {
+    const { error } = await supabase
+      .from("profiles")
+      .update({
+        full_name: eName.trim(),
+        avatar_initials: eInitials.trim().toUpperCase().slice(0, 3),
+        avatar_color: eColor,
+      })
+      .eq("id", member.user_id);
+    if (error) {
+      toast("Uložení profilu se nezdařilo.", "error");
+      return;
+    }
+    setEditId(null);
+    toast("Profil uložen.");
     load();
   }
 
@@ -175,42 +221,146 @@ export default function MembersView({
 
       <div className="divide-y divide-line/70 panel">
         {members.map((member) => (
-          <div key={member.user_id} className="flex items-center gap-3 px-3 py-2">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm">
-                {member.profiles?.full_name || member.profiles?.email}
-                {member.user_id === currentUserId && (
-                  <span className="text-ink-soft/70"> (ty)</span>
-                )}
-              </p>
-              <p className="truncate text-xs text-ink-soft/70">{member.profiles?.email}</p>
-            </div>
-            {isSuperAdmin ? (
-              <select
-                value={member.role}
-                onChange={(e) => changeRole(member, e.target.value as Role)}
-                className="input px-2 py-1 text-xs"
-              >
-                <option value="member">member</option>
-                <option value="admin">admin</option>
-              </select>
-            ) : (
-              <span
-                className={`rounded px-1.5 py-0.5 text-xs ${
-                  member.role === "admin"
-                    ? "bg-amber-100 text-amber-800"
-                    : "bg-black/5 text-ink-soft"
+          <div key={member.user_id}>
+            <div className="flex items-center gap-3 px-3 py-2">
+              <Avatar
+                profile={member.profiles}
+                colorKey={member.user_id}
+                size="md"
+              />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm">
+                  {member.profiles?.full_name || member.profiles?.email}
+                  {member.user_id === currentUserId && (
+                    <span className="text-ink-soft/70"> (ty)</span>
+                  )}
+                </p>
+                <p className="truncate text-xs text-ink-soft/70">{member.profiles?.email}</p>
+              </div>
+              <button
+                onClick={() =>
+                  editId === member.user_id ? setEditId(null) : startEdit(member)
+                }
+                aria-expanded={editId === member.user_id}
+                className={`rounded-md px-2 py-1 text-xs hover:bg-black/5 ${
+                  editId === member.user_id
+                    ? "bg-accent-soft text-accent"
+                    : "text-ink-soft"
                 }`}
               >
-                {member.role}
-              </span>
+                Upravit
+              </button>
+              {isSuperAdmin ? (
+                <select
+                  value={member.role}
+                  onChange={(e) => changeRole(member, e.target.value as Role)}
+                  className="input px-2 py-1 text-xs"
+                >
+                  <option value="member">member</option>
+                  <option value="admin">admin</option>
+                </select>
+              ) : (
+                <span
+                  className={`rounded px-1.5 py-0.5 text-xs ${
+                    member.role === "admin"
+                      ? "bg-amber-100 text-amber-800"
+                      : "bg-black/5 text-ink-soft"
+                  }`}
+                >
+                  {member.role}
+                </span>
+              )}
+              <button
+                onClick={() => remove(member)}
+                className="rounded-md px-2 py-1 text-xs text-danger hover:bg-danger/10"
+              >
+                Odebrat
+              </button>
+            </div>
+
+            {editId === member.user_id && (
+              <div className="space-y-2 border-t border-line/50 bg-black/[.015] px-3 py-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  <Avatar
+                    profile={{
+                      full_name: eName,
+                      email: member.profiles?.email,
+                      avatar_initials: eInitials,
+                      avatar_color: eColor,
+                    }}
+                    colorKey={member.user_id}
+                    size="lg"
+                  />
+                  <input
+                    type="text"
+                    value={eName}
+                    onChange={(e) => setEName(e.target.value)}
+                    placeholder="Jméno a příjmení"
+                    aria-label="Jméno a příjmení"
+                    className="input min-w-44 flex-1"
+                  />
+                  <input
+                    type="text"
+                    value={eInitials}
+                    onChange={(e) => setEInitials(e.target.value)}
+                    maxLength={3}
+                    placeholder={avatarInitials({
+                      full_name: eName,
+                      email: member.profiles?.email,
+                    })}
+                    aria-label="Iniciály (max 3 znaky)"
+                    title="Iniciály — prázdné se odvodí ze jména"
+                    className="input w-16 text-center uppercase"
+                  />
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span className="text-xs text-ink-soft/70">Barva:</span>
+                  {AVATAR_COLORS.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setEColor(color)}
+                      aria-label={`Barva ${color}`}
+                      aria-pressed={eColor === color}
+                      style={{ background: color }}
+                      className={`h-6 w-6 rounded-full transition-transform ${
+                        eColor === color
+                          ? "scale-110 ring-2 ring-ink ring-offset-1"
+                          : "hover:scale-105"
+                      }`}
+                    />
+                  ))}
+                  <input
+                    type="color"
+                    value={eColor || "#0e7569"}
+                    onChange={(e) => setEColor(e.target.value)}
+                    aria-label="Vlastní barva"
+                    title="Vlastní barva"
+                    className="h-6 w-8 cursor-pointer rounded border border-line bg-transparent"
+                  />
+                  {eColor && (
+                    <button
+                      onClick={() => setEColor("")}
+                      className="btn-ghost px-2 py-0.5 text-xs"
+                    >
+                      Automatická
+                    </button>
+                  )}
+                  <span className="flex-1" />
+                  <button
+                    onClick={() => setEditId(null)}
+                    className="btn-ghost px-2 py-1 text-xs"
+                  >
+                    Zrušit
+                  </button>
+                  <button
+                    onClick={() => saveEdit(member)}
+                    className="btn-primary px-3 py-1 text-xs"
+                  >
+                    Uložit
+                  </button>
+                </div>
+              </div>
             )}
-            <button
-              onClick={() => remove(member)}
-              className="rounded-md px-2 py-1 text-xs text-danger hover:bg-danger/10"
-            >
-              Odebrat
-            </button>
           </div>
         ))}
       </div>
