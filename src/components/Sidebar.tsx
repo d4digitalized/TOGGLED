@@ -28,6 +28,7 @@ function Icon({ d }: { d: string }) {
 
 const ICONS = {
   board: "M4 5h7v14H4zM13 5h7v8h-7z",
+  check: "M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11",
   clock: "M12 7v5l3 2M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z",
   chart: "M5 20V10M12 20V4M19 20v-7",
   folder: "M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z",
@@ -85,6 +86,7 @@ export default function Sidebar({
       title: "Sledování",
       items: [
         { href: `/w/${wsId}`, label: "Projekty", icon: "board" },
+        { href: `/w/${wsId}/tasks`, label: "Úkoly", icon: "check" },
         { href: `/w/${wsId}/time`, label: "Report", icon: "clock" },
       ],
     },

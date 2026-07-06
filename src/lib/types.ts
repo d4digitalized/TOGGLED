@@ -59,7 +59,8 @@ export type Task = {
   priority: number;
   parent_id: string | null;
   recurrence: Recurrence | null;
-  projects?: { name: string };
+  projects?: { name: string; position?: number };
+  board_columns?: { name: string } | null;
 };
 
 export type Label = {
