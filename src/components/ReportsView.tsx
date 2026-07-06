@@ -60,6 +60,7 @@ export default function ReportsView({ wsId }: { wsId: string }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [detail, setDetail] = useState<Detail | null>(null);
+  const [tab, setTab] = useState<"person" | "project">("person");
   const [rate, setRate] = useState("");
   const [rateUnit, setRateUnit] = useState<"mesic" | "hod">("mesic");
 
@@ -234,17 +235,42 @@ export default function ReportsView({ wsId }: { wsId: string }) {
       {loading ? (
         <p className="p-4 text-ink-soft/70">Načítám…</p>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="panel">
+          <div className="flex items-center gap-2 border-b border-line/70 px-3 py-2">
+            <div className="inline-flex rounded-lg bg-black/5 p-0.5 text-sm">
+              {(
+                [
+                  ["person", "Po lidech", sortedPeople.length],
+                  ["project", "Po projektech", sortedProjects.length],
+                ] as const
+              ).map(([key, label, count]) => (
+                <button
+                  key={key}
+                  onClick={() => {
+                    setTab(key);
+                    setDetail(null);
+                  }}
+                  aria-pressed={tab === key}
+                  className={`rounded-md px-3 py-1 transition-colors ${
+                    tab === key
+                      ? "bg-surface font-medium text-ink shadow-sm"
+                      : "text-ink-soft hover:text-ink"
+                  }`}
+                >
+                  {label}
+                  <span className="ml-1.5 text-xs text-ink-soft/60">{count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
           {(
             [
-              ["Po lidech", "person", sortedPeople],
-              ["Po projektech", "project", sortedProjects],
+              tab === "person"
+                ? (["person", sortedPeople] as const)
+                : (["project", sortedProjects] as const),
             ] as const
-          ).map(([title, kind, rows]) => (
-            <div key={title} className="panel">
-              <h2 className="border-b border-line/70 px-3 py-2 text-sm font-semibold">
-                {title}
-              </h2>
+          ).map(([kind, rows]) => (
+            <div key={kind}>
               {rows.length === 0 ? (
                 <p className="p-3 text-sm text-ink-soft/70">Žádná data za období.</p>
               ) : (
