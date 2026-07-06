@@ -35,6 +35,8 @@ export type BoardColumn = {
   position: number;
 };
 
+export type Recurrence = "daily" | "weekdays" | "weekly" | "monthly" | "yearly";
+
 export type Task = {
   id: string;
   workspace_id: string;
@@ -48,7 +50,23 @@ export type Task = {
   completed_at: string | null;
   created_by: string;
   created_at: string;
+  priority: number;
+  parent_id: string | null;
+  recurrence: Recurrence | null;
   projects?: { name: string };
+};
+
+export type Label = {
+  id: string;
+  workspace_id: string;
+  name: string;
+};
+
+export type NotificationPrefs = {
+  user_id: string;
+  on_assign: boolean;
+  on_comment: boolean;
+  daily_digest: boolean;
 };
 
 export type TaskComment = {

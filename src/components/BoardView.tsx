@@ -27,7 +27,8 @@ import { createClient } from "@/lib/supabase/client";
 import { posBetween } from "@/lib/position";
 import { startTimer } from "@/lib/timer";
 import { toast } from "@/lib/toast";
-import type { BoardColumn, Membership, Task } from "@/lib/types";
+import { PRIORITIES } from "@/lib/priority";
+import type { BoardColumn, Label, Membership, Task } from "@/lib/types";
 import BoardCard from "@/components/BoardCard";
 import CardModal from "@/components/CardModal";
 import { ProjectDot } from "@/components/ProjectPicker";
@@ -72,6 +73,14 @@ export default function BoardView({
   const [newCardTitle, setNewCardTitle] = useState("");
   const [editingCol, setEditingCol] = useState<string | null>(null);
   const [editColName, setEditColName] = useState("");
+  const [cardLabels, setCardLabels] = useState<Record<string, Label[]>>({});
+  const [subCounts, setSubCounts] = useState<Record<string, { done: number; total: number }>>({});
+  const [wsLabels, setWsLabels] = useState<Label[]>([]);
+  // filtry
+  const [fText, setFText] = useState("");
+  const [fPriority, setFPriority] = useState(0);
+  const [fLabel, setFLabel] = useState("");
+  const [fAssignee, setFAssignee] = useState("");
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -81,7 +90,7 @@ export default function BoardView({
   );
 
   const load = useCallback(async () => {
-    const [colRes, taskRes, memRes] = await Promise.all([
+    const [colRes, taskRes, memRes, subRes, labelRes, tlRes] = await Promise.all([
       supabase
         .from("board_columns")
         .select("*")
@@ -91,14 +100,43 @@ export default function BoardView({
         .from("tasks")
         .select("*")
         .eq("project_id", projectId)
+        .is("parent_id", null) // podúkoly žijí jen v modalu karty
         .order("position"),
       supabase
         .from("workspace_members")
         .select("user_id, role, profiles(id, email, full_name, is_super_admin)")
         .eq("workspace_id", wsId),
+      supabase
+        .from("tasks")
+        .select("parent_id, completed_at")
+        .eq("project_id", projectId)
+        .not("parent_id", "is", null),
+      supabase.from("labels").select("*").eq("workspace_id", wsId).order("name"),
+      supabase
+        .from("task_labels")
+        .select("task_id, labels!inner(id, workspace_id, name)")
+        .eq("labels.workspace_id", wsId),
     ]);
     const cols = (colRes.data as BoardColumn[]) ?? [];
     const tasks = (taskRes.data as Task[]) ?? [];
+
+    const counts: Record<string, { done: number; total: number }> = {};
+    for (const sub of subRes.data ?? []) {
+      const key = sub.parent_id as string;
+      counts[key] = counts[key] ?? { done: 0, total: 0 };
+      counts[key].total += 1;
+      if (sub.completed_at) counts[key].done += 1;
+    }
+    setSubCounts(counts);
+
+    setWsLabels((labelRes.data as Label[]) ?? []);
+    const byTask: Record<string, Label[]> = {};
+    for (const row of tlRes.data ?? []) {
+      const label = row.labels as unknown as Label;
+      if (!label) continue;
+      byTask[row.task_id] = [...(byTask[row.task_id] ?? []), label];
+    }
+    setCardLabels(byTask);
     const byCol: CardsByCol = {};
     const lost: Task[] = [];
     for (const col of cols) byCol[col.id] = [];
@@ -290,12 +328,92 @@ export default function BoardView({
 
   if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
 
+  const filterActive =
+    fText.trim() !== "" || fPriority !== 0 || fLabel !== "" || fAssignee !== "";
+  const visible = (list: Task[]): Task[] => {
+    if (!filterActive) return list;
+    const q = fText.trim().toLowerCase();
+    return list.filter(
+      (t) =>
+        (!q ||
+          t.title.toLowerCase().includes(q) ||
+          t.description.toLowerCase().includes(q)) &&
+        (fPriority === 0 || (t.priority ?? 4) === fPriority) &&
+        (!fLabel || (cardLabels[t.id] ?? []).some((l) => l.id === fLabel)) &&
+        (!fAssignee || t.assignee_id === fAssignee)
+    );
+  };
+
   return (
     <div className="space-y-3">
-      <h1 className="flex items-center gap-2.5 font-display text-lg font-semibold">
-        <ProjectDot id={projectId} className="h-3 w-3" />
-        {projectName}
-      </h1>
+      <div className="flex flex-wrap items-center gap-2">
+        <h1 className="flex items-center gap-2.5 font-display text-lg font-semibold">
+          <ProjectDot id={projectId} className="h-3 w-3" />
+          {projectName}
+        </h1>
+        <span className="flex-1" />
+        <input
+          type="search"
+          placeholder="Hledat na nástěnce…"
+          value={fText}
+          onChange={(e) => setFText(e.target.value)}
+          className="input w-44 px-2 py-1 text-sm"
+        />
+        <select
+          value={fPriority}
+          onChange={(e) => setFPriority(Number(e.target.value))}
+          aria-label="Filtr priority"
+          className="input px-2 py-1 text-sm"
+        >
+          <option value={0}>Priorita: vše</option>
+          {PRIORITIES.map((p) => (
+            <option key={p.value} value={p.value}>
+              {p.label}
+            </option>
+          ))}
+        </select>
+        {wsLabels.length > 0 && (
+          <select
+            value={fLabel}
+            onChange={(e) => setFLabel(e.target.value)}
+            aria-label="Filtr štítku"
+            className="input px-2 py-1 text-sm"
+          >
+            <option value="">Štítek: vše</option>
+            {wsLabels.map((l) => (
+              <option key={l.id} value={l.id}>
+                {l.name}
+              </option>
+            ))}
+          </select>
+        )}
+        <select
+          value={fAssignee}
+          onChange={(e) => setFAssignee(e.target.value)}
+          aria-label="Filtr řešitele"
+          className="input px-2 py-1 text-sm"
+        >
+          <option value="">Řešitel: všichni</option>
+          {members.map((m) => (
+            <option key={m.user_id} value={m.user_id}>
+              {m.profiles?.full_name || m.profiles?.email}
+            </option>
+          ))}
+        </select>
+        {filterActive && (
+          <button
+            onClick={() => {
+              setFText("");
+              setFPriority(0);
+              setFLabel("");
+              setFAssignee("");
+            }}
+            className="btn-ghost px-2 py-1 text-xs"
+          >
+            Zrušit filtry
+          </button>
+        )}
+      </div>
 
       {orphans.length > 0 && (
         <div className="panel space-y-2 border-amber-300 bg-amber-50 p-3">
@@ -333,7 +451,7 @@ export default function BoardView({
               <SortableColumn
                 key={col.id}
                 column={col}
-                cardCount={(cards[col.id] ?? []).length}
+                cardCount={visible(cards[col.id] ?? []).length}
                 isEditing={editingCol === col.id}
                 editName={editColName}
                 onEditName={setEditColName}
@@ -342,15 +460,17 @@ export default function BoardView({
                 onDelete={() => deleteColumn(col)}
               >
                 <SortableContext
-                  items={(cards[col.id] ?? []).map((t) => t.id)}
+                  items={visible(cards[col.id] ?? []).map((t) => t.id)}
                   strategy={verticalListSortingStrategy}
                 >
                   <div className="flex min-h-2 flex-col gap-2">
-                    {(cards[col.id] ?? []).map((task) => (
+                    {visible(cards[col.id] ?? []).map((task) => (
                       <BoardCard
                         key={task.id}
                         task={task}
                         members={members}
+                        labels={cardLabels[task.id]}
+                        subtaskCount={subCounts[task.id]}
                         onOpen={() => setOpenTask(task)}
                         onStart={() =>
                           startTimer(supabase, userId, {

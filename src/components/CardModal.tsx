@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { startTimer } from "@/lib/timer";
-import type { Membership, Task, TaskComment } from "@/lib/types";
+import { toast } from "@/lib/toast";
+import { PRIORITIES, RECURRENCE_OPTIONS, priorityColor } from "@/lib/priority";
+import { projectColor } from "@/components/ProjectPicker";
+import type { Label, Membership, Recurrence, Task, TaskComment } from "@/lib/types";
 
 export default function CardModal({
   task,
@@ -23,9 +26,17 @@ export default function CardModal({
   const [description, setDescription] = useState(task.description);
   const [assigneeId, setAssigneeId] = useState(task.assignee_id ?? "");
   const [dueDate, setDueDate] = useState(task.due_date ?? "");
+  const [priority, setPriority] = useState(task.priority ?? 4);
+  const [recurrence, setRecurrence] = useState<string>(task.recurrence ?? "");
   const [done, setDone] = useState(!!task.completed_at);
   const [comments, setComments] = useState<TaskComment[]>([]);
   const [newComment, setNewComment] = useState("");
+  const [labels, setLabels] = useState<Label[]>([]);
+  const [taskLabels, setTaskLabels] = useState<Set<string>>(new Set());
+  const [newLabel, setNewLabel] = useState("");
+  const [addingLabel, setAddingLabel] = useState(false);
+  const [subtasks, setSubtasks] = useState<Task[]>([]);
+  const [newSubtask, setNewSubtask] = useState("");
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
 
@@ -47,9 +58,33 @@ export default function CardModal({
     setComments((data as TaskComment[]) ?? []);
   }, [supabase, task.id]);
 
+  const loadLabels = useCallback(async () => {
+    const [allRes, mineRes] = await Promise.all([
+      supabase
+        .from("labels")
+        .select("*")
+        .eq("workspace_id", task.workspace_id)
+        .order("name"),
+      supabase.from("task_labels").select("label_id").eq("task_id", task.id),
+    ]);
+    setLabels((allRes.data as Label[]) ?? []);
+    setTaskLabels(new Set((mineRes.data ?? []).map((r) => r.label_id as string)));
+  }, [supabase, task.workspace_id, task.id]);
+
+  const loadSubtasks = useCallback(async () => {
+    const { data } = await supabase
+      .from("tasks")
+      .select("*")
+      .eq("parent_id", task.id)
+      .order("created_at");
+    setSubtasks((data as Task[]) ?? []);
+  }, [supabase, task.id]);
+
   useEffect(() => {
     loadComments();
-  }, [loadComments]);
+    loadLabels();
+    loadSubtasks();
+  }, [loadComments, loadLabels, loadSubtasks]);
 
   async function save() {
     const { error } = await supabase
@@ -59,6 +94,8 @@ export default function CardModal({
         description,
         assignee_id: assigneeId || null,
         due_date: dueDate || null,
+        priority,
+        recurrence: (recurrence || null) as Recurrence | null,
         completed_at: done
           ? (task.completed_at ?? new Date().toISOString())
           : null,
@@ -80,6 +117,85 @@ export default function CardModal({
     }
     onChanged();
   }
+
+  // ---------------------------------------------------------------- štítky
+
+  async function toggleLabel(label: Label) {
+    const wasOn = taskLabels.has(label.id);
+    setTaskLabels((prev) => {
+      const next = new Set(prev);
+      if (wasOn) next.delete(label.id);
+      else next.add(label.id);
+      return next;
+    });
+    const { error } = wasOn
+      ? await supabase
+          .from("task_labels")
+          .delete()
+          .eq("task_id", task.id)
+          .eq("label_id", label.id)
+      : await supabase
+          .from("task_labels")
+          .insert({ task_id: task.id, label_id: label.id });
+    if (error) {
+      toast("Změna štítku se nezdařila.", "error");
+      loadLabels();
+    }
+  }
+
+  async function createLabel(e: React.FormEvent) {
+    e.preventDefault();
+    const name = newLabel.trim();
+    if (!name) return;
+    const { data, error } = await supabase
+      .from("labels")
+      .insert({ workspace_id: task.workspace_id, name })
+      .select("id")
+      .single();
+    if (error || !data) {
+      toast("Štítek se nepodařilo založit (možná už existuje).", "error");
+      return;
+    }
+    await supabase.from("task_labels").insert({ task_id: task.id, label_id: data.id });
+    setNewLabel("");
+    setAddingLabel(false);
+    loadLabels();
+  }
+
+  // ---------------------------------------------------------------- podúkoly
+
+  async function addSubtask(e: React.FormEvent) {
+    e.preventDefault();
+    const name = newSubtask.trim();
+    if (!name) return;
+    const { error } = await supabase.from("tasks").insert({
+      workspace_id: task.workspace_id,
+      project_id: task.project_id,
+      parent_id: task.id,
+      title: name,
+    });
+    if (error) {
+      toast("Podúkol se nepodařilo přidat.", "error");
+      return;
+    }
+    setNewSubtask("");
+    loadSubtasks();
+  }
+
+  async function toggleSubtask(sub: Task) {
+    await supabase
+      .from("tasks")
+      .update({ completed_at: sub.completed_at ? null : new Date().toISOString() })
+      .eq("id", sub.id);
+    loadSubtasks();
+  }
+
+  async function removeSubtask(sub: Task) {
+    await supabase.from("tasks").delete().eq("id", sub.id);
+    loadSubtasks();
+  }
+
+  // ---------------------------------------------------------------- komentáře
 
   async function addComment(e: React.FormEvent) {
     e.preventDefault();
@@ -107,6 +223,8 @@ export default function CardModal({
     });
     onClose();
   }
+
+  const doneSubtasks = subtasks.filter((s) => s.completed_at).length;
 
   return (
     <div
@@ -157,6 +275,7 @@ export default function CardModal({
           <select
             value={assigneeId}
             onChange={(e) => setAssigneeId(e.target.value)}
+            aria-label="Řešitel"
             className="input px-2"
           >
             <option value="">Nepřiřazeno</option>
@@ -170,14 +289,138 @@ export default function CardModal({
             type="date"
             value={dueDate}
             onChange={(e) => setDueDate(e.target.value)}
+            aria-label="Termín"
             className="input px-2 py-1"
           />
+          <select
+            value={priority}
+            onChange={(e) => setPriority(Number(e.target.value))}
+            aria-label="Priorita"
+            style={{ color: priorityColor(priority) ?? undefined }}
+            className="input px-2"
+          >
+            {PRIORITIES.map((p) => (
+              <option key={p.value} value={p.value}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={recurrence}
+            onChange={(e) => setRecurrence(e.target.value)}
+            aria-label="Opakování"
+            className="input px-2"
+          >
+            {RECURRENCE_OPTIONS.map((r) => (
+              <option key={r.value} value={r.value}>
+                {r.label}
+              </option>
+            ))}
+          </select>
           <button
             onClick={play}
             className="rounded-md border border-accent/50 px-3 py-1.5 text-sm text-accent hover:bg-accent-soft"
           >
             ▶ Spustit timer
           </button>
+        </div>
+        {recurrence && (
+          <p className="text-xs text-ink-soft/70">
+            Po dokončení se automaticky založí další výskyt s posunutým termínem.
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          {labels.map((label) => {
+            const on = taskLabels.has(label.id);
+            return (
+              <button
+                key={label.id}
+                onClick={() => toggleLabel(label)}
+                aria-pressed={on}
+                className={`rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                  on
+                    ? "border-transparent text-white"
+                    : "border-line text-ink-soft hover:border-ink-soft/40"
+                }`}
+                style={on ? { background: projectColor(label.id) } : undefined}
+              >
+                {label.name}
+              </button>
+            );
+          })}
+          {addingLabel ? (
+            <form onSubmit={createLabel} className="inline-flex gap-1">
+              <input
+                autoFocus
+                type="text"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                onBlur={() => !newLabel.trim() && setAddingLabel(false)}
+                placeholder="Název štítku…"
+                className="input w-32 px-2 py-0.5 text-xs"
+              />
+              <button type="submit" className="btn-primary px-2 py-0.5 text-xs">
+                OK
+              </button>
+            </form>
+          ) : (
+            <button
+              onClick={() => setAddingLabel(true)}
+              className="rounded-full px-2 py-0.5 text-xs text-ink-soft/70 hover:bg-black/5"
+            >
+              + štítek
+            </button>
+          )}
+        </div>
+
+        <div className="space-y-1.5 border-t border-line/70 pt-3">
+          <h3 className="text-sm font-semibold">
+            Podúkoly
+            {subtasks.length > 0 && (
+              <span className="ml-2 text-xs font-normal text-ink-soft/70">
+                {doneSubtasks}/{subtasks.length}
+              </span>
+            )}
+          </h3>
+          {subtasks.map((sub) => (
+            <div key={sub.id} className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={!!sub.completed_at}
+                onChange={() => toggleSubtask(sub)}
+                className="h-3.5 w-3.5"
+              />
+              <span
+                className={`flex-1 text-sm ${
+                  sub.completed_at ? "text-ink-soft/70 line-through" : ""
+                }`}
+              >
+                {sub.title}
+              </span>
+              <button
+                onClick={() => removeSubtask(sub)}
+                aria-label={`Smazat podúkol ${sub.title}`}
+                className="rounded px-1.5 text-xs text-ink-soft/50 hover:text-danger"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <form onSubmit={addSubtask} className="flex gap-2">
+            <input
+              type="text"
+              placeholder="+ Přidat podúkol…"
+              value={newSubtask}
+              onChange={(e) => setNewSubtask(e.target.value)}
+              className="input-quiet flex-1 px-2 py-1 text-sm"
+            />
+            {newSubtask.trim() && (
+              <button type="submit" className="btn-primary px-2 py-0.5 text-xs">
+                OK
+              </button>
+            )}
+          </form>
         </div>
 
         <div className="space-y-2 border-t border-line/70 pt-3">

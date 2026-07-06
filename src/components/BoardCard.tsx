@@ -2,16 +2,22 @@
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Membership, Task } from "@/lib/types";
+import { priorityColor } from "@/lib/priority";
+import { projectColor } from "@/components/ProjectPicker";
+import type { Label, Membership, Task } from "@/lib/types";
 
 export default function BoardCard({
   task,
   members,
+  labels = [],
+  subtaskCount,
   onOpen,
   onStart,
 }: {
   task: Task;
   members: Membership[];
+  labels?: Label[];
+  subtaskCount?: { done: number; total: number };
   onOpen: () => void;
   onStart: () => void;
 }) {
@@ -27,11 +33,16 @@ export default function BoardCard({
     .slice(0, 2)
     .map((s) => s[0]?.toUpperCase())
     .join("");
+  const flag = priorityColor(task.priority ?? 4);
 
   return (
     <div
       ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        ...(flag ? { borderLeft: `3px solid ${flag}` } : {}),
+      }}
       {...attributes}
       {...listeners}
       onClick={onOpen}
@@ -41,8 +52,26 @@ export default function BoardCard({
     >
       <p className={`text-sm ${isDone ? "text-ink-soft/70 line-through" : ""}`}>
         {task.title}
+        {task.recurrence && (
+          <span className="ml-1 text-xs text-ink-soft/50" title="Opakovaná karta">
+            ↻
+          </span>
+        )}
       </p>
-      {(task.due_date || assignee || !isDone) && (
+      {labels.length > 0 && (
+        <div className="mt-1 flex flex-wrap gap-1">
+          {labels.map((label) => (
+            <span
+              key={label.id}
+              className="rounded-full px-1.5 py-px text-[10px] font-medium text-white"
+              style={{ background: projectColor(label.id) }}
+            >
+              {label.name}
+            </span>
+          ))}
+        </div>
+      )}
+      {(task.due_date || assignee || subtaskCount || !isDone) && (
         <div className="mt-1.5 flex items-center gap-2">
           {task.due_date && (
             <span
@@ -52,6 +81,18 @@ export default function BoardCard({
                 day: "numeric",
                 month: "numeric",
               })}
+            </span>
+          )}
+          {subtaskCount && subtaskCount.total > 0 && (
+            <span
+              className={`text-xs ${
+                subtaskCount.done === subtaskCount.total
+                  ? "text-accent"
+                  : "text-ink-soft/70"
+              }`}
+              title="Podúkoly"
+            >
+              ☑ {subtaskCount.done}/{subtaskCount.total}
             </span>
           )}
           {task.description && <span className="text-xs text-ink-soft/50">≡</span>}
