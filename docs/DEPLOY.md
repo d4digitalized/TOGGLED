@@ -15,6 +15,7 @@ Spustit po sobě, každou jen jednou (přeskoč ty, které už proběhly):
 | `0007_notifications.sql` | fronta notifikací + triggery |
 | `0008_task_assignees.sql` | více řešitelů na kartě |
 | `0009_notifications_inapp.sql` | in-app čtení notifikací (zvoneček) |
+| `0010_avatars.sql` | avatary uživatelů, admin editace profilů |
 
 ## 2. Env proměnné na hostingu
 
