@@ -12,6 +12,15 @@ const KIND_ICON: Record<AppNotification["kind"], string> = {
     "M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM19 8v6M22 11h-6",
   comment:
     "M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z",
+  // zavináč
+  mention:
+    "M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8M16 12a4 4 0 1 1-8 0 4 4 0 0 1 8 0z",
+};
+
+const KIND_TEXT: Record<AppNotification["kind"], string> = {
+  assigned: "ti přiřadil(a) kartu",
+  comment: "komentoval(a) kartu",
+  mention: "tě zmínil(a) v komentáři ke kartě",
 };
 
 function fmtWhen(iso: string): string {
@@ -134,9 +143,7 @@ export default function NotificationsView({ userId }: { userId: string }) {
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm">
                     <span className="font-medium">{n.actor_name || "Někdo"}</span>{" "}
-                    {n.kind === "assigned"
-                      ? "ti přiřadil(a) kartu"
-                      : "komentoval(a) kartu"}{" "}
+                    {KIND_TEXT[n.kind]}{" "}
                     <span className="font-medium">„{n.task_title}“</span>
                   </span>
                   {n.body && (

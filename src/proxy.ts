@@ -1,8 +1,8 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// /api/cron chrání vlastní CRON_SECRET (Bearer), ne session
-const PUBLIC_PATHS = ["/login", "/auth", "/api/cron"];
+// /api/cron chrání CRON_SECRET (Bearer), /api/inbound svix podpis webooku
+const PUBLIC_PATHS = ["/login", "/auth", "/api/cron", "/api/inbound"];
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });

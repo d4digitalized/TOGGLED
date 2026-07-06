@@ -19,6 +19,7 @@ Spustit po sobě, každou jen jednou (přeskoč ty, které už proběhly):
 | `0011_project_order.sql` | pořadí projektů nastavitelné adminem |
 | `0012_backlog.sql` | výchozí sloupec Backlog, karty bez sloupce do něj |
 | `0013_tag_name.sql` | tag name (@handle) uživatele, nastavuje admin |
+| `0014_mentions.sql` | @zmínky v komentářích → notifikace |
 
 ## 2. Env proměnné na hostingu
 
@@ -66,7 +67,27 @@ Kontrola: `select * from cron.job;` a ručně
 `curl -H "Authorization: Bearer SEM_CRON_SECRET" https://toggled.digitalized.cz/api/cron/notify`
 → má vrátit JSON `{"processed":…,"sent":…}`.
 
-## 5. Po nasazení ověřit
+## 5. Odpovědi na e-maily → komentář na kartě (Resend inbound)
+
+Volitelné; bez nastavení všechno ostatní funguje, jen e-maily nemají
+Reply-To. Postup:
+
+1. Resend → **Domains → Add domain**, zvol subdoménu pro příjem,
+   např. `reply.digitalized.cz`, typ *receiving* — Resend vypíše MX
+   záznam, přidej ho do DNS.
+2. Resend → **Webhooks → Add webhook**: URL
+   `https://toggled.digitalized.cz/api/inbound`, event `email.received`.
+   Zkopíruj **signing secret** (`whsec_…`).
+3. Env na hostingu (Production + redeploy):
+   - `REPLY_DOMAIN` = `reply.digitalized.cz`
+   - `RESEND_WEBHOOK_SECRET` = `whsec_…`
+
+Notifikační e-maily pak mají Reply-To s podepsaným tokenem
+(`reply+<task>.<user>.<podpis>@reply.digitalized.cz`); odpověď se po
+ověření podpisu a členství vloží jako komentář (citace původní zprávy
+se odřízne) a normálně notifikuje ostatní.
+
+## 6. Po nasazení ověřit
 
 - nástěnka: filtr lišta nahoře, priorita/štítky/podúkoly v modalu karty
 - zvoneček vedle timeru, obrazovka Notifikace

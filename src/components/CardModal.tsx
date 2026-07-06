@@ -9,6 +9,24 @@ import { projectColor } from "@/components/ProjectPicker";
 import Avatar from "@/components/Avatar";
 import type { Label, Membership, Recurrence, Task, TaskComment } from "@/lib/types";
 
+/** @tagy v textu komentáře zvýrazní barvou akcentu. */
+function CommentBody({ body }: { body: string }) {
+  const parts = body.split(/(@[a-z0-9_.]{2,30})/gi);
+  return (
+    <p className="whitespace-pre-wrap text-sm">
+      {parts.map((part, i) =>
+        /^@[a-z0-9_.]{2,30}$/i.test(part) ? (
+          <span key={i} className="font-medium text-accent">
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      )}
+    </p>
+  );
+}
+
 export default function CardModal({
   task,
   members,
@@ -508,7 +526,7 @@ export default function CardModal({
                   </button>
                 )}
               </div>
-              <p className="whitespace-pre-wrap text-sm">{comment.body}</p>
+              <CommentBody body={comment.body} />
             </div>
           ))}
           <form onSubmit={addComment} className="flex gap-2">

@@ -8,6 +8,7 @@ import type { NotificationPrefs } from "@/lib/types";
 const DEFAULTS: Omit<NotificationPrefs, "user_id"> = {
   on_assign: true,
   on_comment: true,
+  on_mention: true,
   daily_digest: true,
 };
 
@@ -21,6 +22,11 @@ const ITEMS: { key: keyof typeof DEFAULTS; label: string; hint: string }[] = [
     key: "on_comment",
     label: "Komentáře",
     hint: "E-mail, když někdo komentuje tvoji kartu (jsi řešitel nebo autor).",
+  },
+  {
+    key: "on_mention",
+    label: "Zmínky",
+    hint: "E-mail, když tě někdo označí @tagem v komentáři.",
   },
   {
     key: "daily_digest",
@@ -44,6 +50,7 @@ export default function NotificationSettings({ userId }: { userId: string }) {
       setPrefs({
         on_assign: data.on_assign,
         on_comment: data.on_comment,
+        on_mention: data.on_mention ?? true,
         daily_digest: data.daily_digest,
       });
     }

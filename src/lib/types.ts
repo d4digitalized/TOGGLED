@@ -74,7 +74,7 @@ export type Label = {
 export type AppNotification = {
   id: string;
   user_id: string;
-  kind: "assigned" | "comment";
+  kind: "assigned" | "comment" | "mention";
   workspace_id: string;
   project_id: string | null;
   task_id: string | null;
@@ -89,6 +89,7 @@ export type NotificationPrefs = {
   user_id: string;
   on_assign: boolean;
   on_comment: boolean;
+  on_mention: boolean;
   daily_digest: boolean;
 };
 
