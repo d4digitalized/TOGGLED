@@ -10,6 +10,7 @@ import {
   TIMER_CHANGED_EVENT,
 } from "@/lib/timer";
 import ProjectPicker from "@/components/ProjectPicker";
+import NotificationsBell from "@/components/NotificationsBell";
 import type { Project, TimeEntry } from "@/lib/types";
 
 export default function TimerBar({
@@ -157,6 +158,8 @@ export default function TimerBar({
             </svg>
           </button>
         )}
+
+        <NotificationsBell wsId={wsId} userId={userId} />
       </div>
     </header>
   );

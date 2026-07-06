@@ -63,6 +63,20 @@ export type Label = {
   name: string;
 };
 
+export type AppNotification = {
+  id: string;
+  user_id: string;
+  kind: "assigned" | "comment";
+  workspace_id: string;
+  project_id: string | null;
+  task_id: string | null;
+  task_title: string;
+  actor_name: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+};
+
 export type NotificationPrefs = {
   user_id: string;
   on_assign: boolean;
