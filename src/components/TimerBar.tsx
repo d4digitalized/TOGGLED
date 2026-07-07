@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { entrySeconds, fmtClock } from "@/lib/format";
 import {
@@ -25,7 +25,11 @@ export default function TimerBar({
   const [projects, setProjects] = useState<Project[]>([]);
   const [description, setDescription] = useState("");
   const [idleProject, setIdleProject] = useState("");
+  const [busy, setBusy] = useState(false);
   const [, setTick] = useState(0);
+  // start/stop probíhá — blokuje dvojklik i externí reload, aby optimistický
+  // stav nepřeblikával. Ref (ne state), ať ho vidí i listenery bez re-subscribe.
+  const busyRef = useRef(false);
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -39,12 +43,26 @@ export default function TimerBar({
 
   useEffect(() => {
     load();
-    const onChange = () => load();
+    // reload při vlastní změně timeru i při návratu na stránku. Pokrýváme
+    // focus (přepnutí okna), visibilitychange (přepnutí tabu) a pageshow
+    // (obnova z bfcache — mobilní tlačítko Zpět). Během vlastního start/stop
+    // reload přeskočíme, ať optimistický stav nepřebliká zpět.
+    const onChange = () => {
+      if (busyRef.current) return;
+      load();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") onChange();
+    };
     window.addEventListener(TIMER_CHANGED_EVENT, onChange);
     window.addEventListener("focus", onChange);
+    window.addEventListener("pageshow", onChange);
+    document.addEventListener("visibilitychange", onVisible);
     return () => {
       window.removeEventListener(TIMER_CHANGED_EVENT, onChange);
       window.removeEventListener("focus", onChange);
+      window.removeEventListener("pageshow", onChange);
+      document.removeEventListener("visibilitychange", onVisible);
     };
   }, [load]);
 
@@ -76,12 +94,41 @@ export default function TimerBar({
   const isTaskEntry = !!running?.task_id;
 
   async function start() {
+    if (busyRef.current || running) return;
+    busyRef.current = true;
+    setBusy(true);
+    const projectId = idleProject || null;
+    // optimisticky přepni na „běží" hned, ať má uživatel okamžitou odezvu
+    setRunning({
+      id: "optimistic",
+      workspace_id: wsId,
+      user_id: userId,
+      project_id: projectId,
+      task_id: null,
+      description: description.trim(),
+      started_at: new Date().toISOString(),
+      stopped_at: null,
+    } as unknown as TimeEntry);
     await startTimer(supabase, userId, {
       workspace_id: wsId,
-      project_id: idleProject || null,
+      project_id: projectId,
       description: description.trim(),
     });
     setIdleProject("");
+    await load(); // sesynchronizuj skutečný záznam (id, přesný started_at)
+    busyRef.current = false;
+    setBusy(false);
+  }
+
+  async function stop() {
+    if (busyRef.current || !running) return;
+    busyRef.current = true;
+    setBusy(true);
+    setRunning(null); // optimisticky; při chybě to load() vrátí zpět
+    await stopRunningTimer(supabase, userId);
+    await load();
+    busyRef.current = false;
+    setBusy(false);
   }
 
   async function saveDescription() {
@@ -142,17 +189,19 @@ export default function TimerBar({
 
         {running ? (
           <button
-            onClick={() => stopRunningTimer(supabase, userId)}
+            onClick={stop}
+            disabled={busy}
             aria-label="Zastavit timer a uložit záznam"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-white shadow-sm hover:bg-red-500"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-red-600 text-white shadow-sm hover:bg-red-500 disabled:opacity-60"
           >
             <span className="block h-3.5 w-3.5 rounded-[2px] bg-current" />
           </button>
         ) : (
           <button
             onClick={start}
+            disabled={busy}
             aria-label="Spustit timer"
-            className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-sm hover:bg-[#0a5d54]"
+            className="flex h-10 w-10 items-center justify-center rounded-full bg-accent text-white shadow-sm hover:bg-[#0a5d54] disabled:opacity-60"
           >
             <svg viewBox="0 0 24 24" fill="currentColor" className="ml-0.5 h-4 w-4" aria-hidden>
               <path d="M7 4.5v15l13-7.5z" />

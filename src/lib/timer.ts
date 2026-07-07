@@ -29,7 +29,12 @@ export async function startTimer(
     user_id: userId,
   });
   if (error) {
-    toast("Timer se nepodařilo spustit.", "error");
+    // 23505 = unikátní index „jeden běžící timer na uživatele" → jiný timer už
+    // běží (souběh / dvojklik / jiná záložka). Nehlásíme jako chybu, jen
+    // necháme UI sesynchronizovat přes notifyTimerChanged níž.
+    if (error.code !== "23505") {
+      toast("Timer se nepodařilo spustit.", "error");
+    }
   } else if (stoppedPrevious) {
     toast("Předchozí timer zastaven a uložen, měřím nový.");
   } else {
