@@ -24,6 +24,25 @@ const fail = (msg: string) => ({
 
 export function registerTools(server: McpServer): void {
   server.registerTool(
+    "whoami",
+    {
+      title: "Kdo jsem",
+      description:
+        "Identita přihlášeného uživatele: user_id, jméno, e-mail, super-admin. user_id použij, když má uživatel přiřadit úkol sám sobě.",
+      inputSchema: {},
+    },
+    async (_args, extra) => {
+      const { client, userId } = clientFor(extra);
+      const { data, error } = await client
+        .from("profiles")
+        .select("id, full_name, email, tag_name, is_super_admin")
+        .eq("id", userId)
+        .single();
+      return error ? fail(error.message) : ok(data);
+    }
+  );
+
+  server.registerTool(
     "list_workspaces",
     {
       title: "Seznam workspaces",
@@ -71,7 +90,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Členové projektu",
       description:
-        "Lidé, které lze na úkoly projektu přiřadit jako řešitele (nutné před assign_task).",
+        "Členové projektu. Přiřadit jako řešitele (assign_task) lze je NEBO adminy workspace — adminy získáš z list_workspace_members.",
       inputSchema: { project_id: z.string() },
     },
     async ({ project_id }, extra) => {
@@ -85,11 +104,29 @@ export function registerTools(server: McpServer): void {
   );
 
   server.registerTool(
+    "list_workspace_members",
+    {
+      title: "Členové workspace",
+      description:
+        "Všichni členové workspace + role (admin/member). Přiřadit na úkol lze členy projektu i adminy workspace.",
+      inputSchema: { workspace_id: z.string() },
+    },
+    async ({ workspace_id }, extra) => {
+      const { client } = clientFor(extra);
+      const { data, error } = await client
+        .from("workspace_members")
+        .select("user_id, role, profiles(id, full_name, email, tag_name)")
+        .eq("workspace_id", workspace_id);
+      return error ? fail(error.message) : ok(data);
+    }
+  );
+
+  server.registerTool(
     "create_task",
     {
       title: "Založit úkol",
       description:
-        "Vytvoří úkol v projektu pod jménem uživatele. Volitelně rovnou přiřadí řešitele (musí být členové projektu).",
+        "Vytvoří úkol v projektu pod jménem uživatele. Volitelně rovnou přiřadí řešitele (členy projektu nebo adminy workspace). Sám sobě: vezmi user_id z whoami.",
       inputSchema: {
         project_id: z.string(),
         title: z.string(),
@@ -150,7 +187,7 @@ export function registerTools(server: McpServer): void {
     {
       title: "Přiřadit řešitele",
       description:
-        "Přidá uživatele jako řešitele úkolu. Řešitel musí být člen projektu; přiřazení mu pošle notifikaci.",
+        "Přidá uživatele jako řešitele úkolu (člen projektu nebo admin workspace). Sám sobě: user_id z whoami. Přiřazení pošle notifikaci.",
       inputSchema: { task_id: z.string(), user_id: z.string() },
     },
     async ({ task_id, user_id }, extra) => {
