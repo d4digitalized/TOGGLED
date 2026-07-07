@@ -482,6 +482,12 @@ export default function MembersView({
                   accountEmail={member.profiles?.email ?? ""}
                   onSaved={load}
                 />
+                <AssignGrantsEditor
+                  wsId={wsId}
+                  userId={member.user_id}
+                  isAdminMember={member.role === "admin"}
+                  members={members}
+                />
               </>
             )}
           </div>
@@ -546,6 +552,103 @@ function NotifyEmailEditor({
       >
         {saving ? "Ukládám…" : "Uložit"}
       </button>
+    </div>
+  );
+}
+
+/** Komu smí člen zadávat úkoly. Bez grantu přiřazuje jen sám sebe;
+    admin přiřazuje komukoli, proto se u něj editor nezobrazuje. */
+function AssignGrantsEditor({
+  wsId,
+  userId,
+  isAdminMember,
+  members,
+}: {
+  wsId: string;
+  userId: string;
+  isAdminMember: boolean;
+  members: Membership[];
+}) {
+  const supabase = createClient();
+  const [targets, setTargets] = useState<Set<string> | null>(null);
+
+  const load = useCallback(async () => {
+    const { data } = await supabase
+      .from("assign_grants")
+      .select("target_id")
+      .eq("workspace_id", wsId)
+      .eq("user_id", userId);
+    setTargets(new Set((data ?? []).map((r) => r.target_id as string)));
+  }, [supabase, wsId, userId]);
+
+  useEffect(() => {
+    if (!isAdminMember) load();
+  }, [load, isAdminMember]);
+
+  async function toggle(targetId: string) {
+    if (!targets) return;
+    const on = targets.has(targetId);
+    const next = new Set(targets);
+    if (on) next.delete(targetId);
+    else next.add(targetId);
+    setTargets(next);
+    const { error } = on
+      ? await supabase
+          .from("assign_grants")
+          .delete()
+          .eq("workspace_id", wsId)
+          .eq("user_id", userId)
+          .eq("target_id", targetId)
+      : await supabase
+          .from("assign_grants")
+          .insert({ workspace_id: wsId, user_id: userId, target_id: targetId });
+    if (error) {
+      toast("Změna práva se nezdařila.", "error");
+      load();
+    }
+  }
+
+  if (isAdminMember) {
+    return (
+      <p className="border-t border-line/50 bg-black/[.015] px-3 py-2 text-xs text-ink-soft/70">
+        Admin může zadávat úkoly komukoli.
+      </p>
+    );
+  }
+
+  const others = members.filter((m) => m.user_id !== userId);
+
+  return (
+    <div className="border-t border-line/50 bg-black/[.015] px-3 py-3">
+      <p className="text-sm font-medium">Smí zadávat úkoly pro</p>
+      <p className="pb-1.5 text-xs text-ink-soft/70">
+        Sebe vždy; ostatní jen s tímto oprávněním.
+      </p>
+      {targets === null ? (
+        <p className="text-sm text-ink-soft/70">Načítám…</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {others.map((m) => {
+            const on = targets.has(m.user_id);
+            const name = m.profiles?.full_name || m.profiles?.email || "?";
+            return (
+              <button
+                key={m.user_id}
+                onClick={() => toggle(m.user_id)}
+                aria-pressed={on}
+                className={`inline-flex items-center gap-1.5 rounded-full border py-0.5 pl-0.5 pr-2 text-xs transition-colors ${
+                  on
+                    ? "border-transparent bg-accent text-white"
+                    : "border-line text-ink-soft hover:border-ink-soft/40"
+                }`}
+              >
+                <Avatar profile={m.profiles} colorKey={m.user_id} size="xs" />
+                {name}
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

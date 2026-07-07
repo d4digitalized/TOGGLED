@@ -47,6 +47,7 @@ export default function CardModal({
   const [description, setDescription] = useState(task.description);
   const [assignees, setAssignees] = useState<Set<string>>(new Set());
   const [projectMembers, setProjectMembers] = useState<Set<string>>(new Set());
+  const [grants, setGrants] = useState<Set<string>>(new Set());
   const [dueDate, setDueDate] = useState(task.due_date ?? "");
   const [priority, setPriority] = useState(task.priority ?? 4);
   const [recurrence, setRecurrence] = useState<string>(task.recurrence ?? "");
@@ -107,16 +108,22 @@ export default function CardModal({
   }, [supabase, task.id]);
 
   const loadAssignees = useCallback(async () => {
-    const [mineRes, pmRes] = await Promise.all([
+    const [mineRes, pmRes, grantRes] = await Promise.all([
       supabase.from("task_assignees").select("user_id").eq("task_id", task.id),
       supabase
         .from("project_members")
         .select("user_id")
         .eq("project_id", task.project_id),
+      supabase
+        .from("assign_grants")
+        .select("target_id")
+        .eq("workspace_id", task.workspace_id)
+        .eq("user_id", userId),
     ]);
     setAssignees(new Set((mineRes.data ?? []).map((r) => r.user_id as string)));
     setProjectMembers(new Set((pmRes.data ?? []).map((r) => r.user_id as string)));
-  }, [supabase, task.id, task.project_id]);
+    setGrants(new Set((grantRes.data ?? []).map((r) => r.target_id as string)));
+  }, [supabase, task.id, task.project_id, task.workspace_id, userId]);
 
   useEffect(() => {
     loadComments();
@@ -129,6 +136,11 @@ export default function CardModal({
   const assignable = members.filter(
     (m) => projectMembers.has(m.user_id) || m.role === "admin"
   );
+
+  // kdo smí měnit čí přiřazení: admin komukoli, člen sobě + s grantem
+  const me = members.find((m) => m.user_id === userId);
+  const isAdmin = !!(me?.profiles?.is_super_admin || me?.role === "admin");
+  const canManage = (id: string) => isAdmin || id === userId || grants.has(id);
 
   async function toggleAssignee(userId: string) {
     const wasOn = assignees.has(userId);
@@ -407,6 +419,20 @@ export default function CardModal({
           {assignable.map((m) => {
             const on = assignees.has(m.user_id);
             const name = m.profiles?.full_name || m.profiles?.email || "?";
+            // bez oprávnění: cizí přiřazení jen zobrazit, nepřiřazené skrýt
+            if (!canManage(m.user_id)) {
+              if (!on) return null;
+              return (
+                <span
+                  key={m.user_id}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-transparent bg-accent/70 py-0.5 pl-0.5 pr-2 text-xs text-white"
+                  title="Přiřazení může změnit admin nebo pověřený kolega"
+                >
+                  <Avatar profile={m.profiles} colorKey={m.user_id} size="xs" />
+                  {name}
+                </span>
+              );
+            }
             return (
               <button
                 key={m.user_id}

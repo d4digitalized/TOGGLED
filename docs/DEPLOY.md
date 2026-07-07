@@ -20,6 +20,7 @@ Spustit po sobě, každou jen jednou (přeskoč ty, které už proběhly):
 | `0012_backlog.sql` | výchozí sloupec Backlog, karty bez sloupce do něj |
 | `0013_tag_name.sql` | tag name (@handle) uživatele, nastavuje admin |
 | `0014_mentions.sql` | @zmínky v komentářích → notifikace |
+| `0017_assign_grants.sql` | práva zadávat úkoly ostatním (grant od admina) |
 | `0015_api_tokens.sql` | osobní API tokeny pro MCP server (napojení do Clauda) |
 | `0016_oauth.sql` | OAuth server pro MCP (custom connector ve webovém/mobilním Claudovi) |
 
