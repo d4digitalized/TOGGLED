@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { requireWsAdmin } from "@/lib/auth";
+import { requireWsMember } from "@/lib/auth";
 import VykazView from "@/components/VykazView";
 
 export const metadata: Metadata = {
@@ -18,18 +18,23 @@ export default async function VykazPage({
   const str = (v: string | string[] | undefined) => (typeof v === "string" ? v : "");
 
   const ws = str(sp.ws);
-  const user = str(sp.user);
+  const userParam = str(sp.user);
   const from = str(sp.from);
   const to = str(sp.to);
-  if (!ws || !user || !DAY_RE.test(from) || !DAY_RE.test(to)) notFound();
+  if (!ws || !userParam || !DAY_RE.test(from) || !DAY_RE.test(to)) notFound();
 
-  await requireWsAdmin(ws);
+  const { user, isAdmin } = await requireWsMember(ws);
+
+  // Běžný člen si smí vytáhnout jen svůj výkaz a bez sazby (jen hodiny).
+  // Admin může kohokoli a se sazbou.
+  const userId = isAdmin ? userParam : user.id;
 
   const rateRaw = Number(str(sp.rate));
-  const rate = Number.isFinite(rateRaw) && rateRaw > 0 ? rateRaw : null;
+  const rate =
+    isAdmin && Number.isFinite(rateRaw) && rateRaw > 0 ? rateRaw : null;
   const unit = str(sp.unit) === "hod" ? ("hod" as const) : ("mesic" as const);
 
   return (
-    <VykazView wsId={ws} userId={user} from={from} to={to} rate={rate} unit={unit} />
+    <VykazView wsId={ws} userId={userId} from={from} to={to} rate={rate} unit={unit} />
   );
 }

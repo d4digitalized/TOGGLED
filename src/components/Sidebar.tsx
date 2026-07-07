@@ -90,18 +90,18 @@ export default function Sidebar({
         { href: `/w/${wsId}/time`, label: "Report", icon: "clock" },
       ],
     },
+    {
+      title: "Analýza",
+      items: [
+        {
+          href: `/w/${wsId}/reports`,
+          label: "Přehledy",
+          icon: "chart" as const,
+        },
+      ],
+    },
     ...(isAdmin
       ? [
-          {
-            title: "Analýza",
-            items: [
-              {
-                href: `/w/${wsId}/reports`,
-                label: "Přehledy",
-                icon: "chart" as const,
-              },
-            ],
-          },
           {
             title: "Správa",
             items: [

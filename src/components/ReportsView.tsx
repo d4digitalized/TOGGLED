@@ -52,7 +52,13 @@ type Agg = {
 };
 type Detail = { kind: "person" | "project"; id: string | null; name: string };
 
-export default function ReportsView({ wsId }: { wsId: string }) {
+export default function ReportsView({
+  wsId,
+  isAdmin = true,
+}: {
+  wsId: string;
+  isAdmin?: boolean;
+}) {
   const supabase = createClient();
   const [from, setFrom] = useState(firstOfMonth());
   const [to, setTo] = useState(today());
@@ -188,8 +194,9 @@ export default function ReportsView({ wsId }: { wsId: string }) {
 
   function vykazUrl(): string {
     const params = new URLSearchParams({ ws: wsId, user: detail!.id!, from, to });
+    // Sazbu do výkazu vkládá jen admin; běžný uživatel exportuje pouze hodiny.
     const parsed = Number(rate.replace(",", "."));
-    if (rate.trim() && Number.isFinite(parsed) && parsed > 0) {
+    if (isAdmin && rate.trim() && Number.isFinite(parsed) && parsed > 0) {
       params.set("rate", String(parsed));
       params.set("unit", rateUnit);
     }
@@ -354,24 +361,30 @@ export default function ReportsView({ wsId }: { wsId: string }) {
             <div className="ml-auto flex flex-wrap items-center gap-2">
               {detail.kind === "person" && (
                 <>
-                  <input
-                    type="text"
-                    inputMode="decimal"
-                    value={rate}
-                    onChange={(e) => setRate(e.target.value)}
-                    placeholder="Sazba (Kč)"
-                    aria-label="Sazba v Kč (volitelné)"
-                    className="input w-28 px-2 py-1 text-sm"
-                  />
-                  <select
-                    value={rateUnit}
-                    onChange={(e) => setRateUnit(e.target.value as "mesic" | "hod")}
-                    aria-label="Typ sazby"
-                    className="input px-2 py-1 text-sm"
-                  >
-                    <option value="mesic">Kč / měsíc</option>
-                    <option value="hod">Kč / hod</option>
-                  </select>
+                  {isAdmin && (
+                    <>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        value={rate}
+                        onChange={(e) => setRate(e.target.value)}
+                        placeholder="Sazba (Kč)"
+                        aria-label="Sazba v Kč (volitelné)"
+                        className="input w-28 px-2 py-1 text-sm"
+                      />
+                      <select
+                        value={rateUnit}
+                        onChange={(e) =>
+                          setRateUnit(e.target.value as "mesic" | "hod")
+                        }
+                        aria-label="Typ sazby"
+                        className="input px-2 py-1 text-sm"
+                      >
+                        <option value="mesic">Kč / měsíc</option>
+                        <option value="hod">Kč / hod</option>
+                      </select>
+                    </>
+                  )}
                   <a
                     href={vykazUrl()}
                     target="_blank"

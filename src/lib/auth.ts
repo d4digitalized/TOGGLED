@@ -13,6 +13,22 @@ export async function requireWsAdmin(wsId: string) {
   return user;
 }
 
+/** Pustí kteréhokoli člena workspace; vrací i příznak, zda je admin,
+    aby stránka mohla omezit rozsah/akce běžnému uživateli. */
+export async function requireWsMember(wsId: string) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: isMember } = await supabase.rpc("is_ws_member", { ws: wsId });
+  if (!isMember) redirect("/");
+
+  const { data: isAdmin } = await supabase.rpc("is_ws_admin", { ws: wsId });
+  return { user, isAdmin: !!isAdmin };
+}
+
 export async function requireSuperAdmin() {
   const supabase = await createClient();
   const {

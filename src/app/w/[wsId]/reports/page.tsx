@@ -1,4 +1,4 @@
-import { requireWsAdmin } from "@/lib/auth";
+import { requireWsMember } from "@/lib/auth";
 import ReportsView from "@/components/ReportsView";
 
 export default async function ReportsPage({
@@ -7,6 +7,6 @@ export default async function ReportsPage({
   params: Promise<{ wsId: string }>;
 }) {
   const { wsId } = await params;
-  await requireWsAdmin(wsId);
-  return <ReportsView wsId={wsId} />;
+  const { isAdmin } = await requireWsMember(wsId);
+  return <ReportsView wsId={wsId} isAdmin={isAdmin} />;
 }
