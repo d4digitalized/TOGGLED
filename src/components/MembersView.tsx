@@ -131,15 +131,21 @@ export default function MembersView({
     load();
   }
 
-  function startEdit(member: Membership) {
-    setEditId(member.user_id);
-    setEName(member.profiles?.full_name ?? "");
-    setEInitials(member.profiles?.avatar_initials ?? "");
-    setEColor(member.profiles?.avatar_color ?? "");
-    setETag(member.profiles?.tag_name ?? "");
+  function startEdit(t: {
+    id: string;
+    full_name?: string | null;
+    avatar_initials?: string | null;
+    avatar_color?: string | null;
+    tag_name?: string | null;
+  }) {
+    setEditId(t.id);
+    setEName(t.full_name ?? "");
+    setEInitials(t.avatar_initials ?? "");
+    setEColor(t.avatar_color ?? "");
+    setETag(t.tag_name ?? "");
   }
 
-  async function saveEdit(member: Membership) {
+  async function saveEdit(userId: string) {
     // tag: bez zavináče, malými písmeny; povolena písmena/číslice/._
     const tag = eTag.trim().replace(/^@/, "").toLowerCase();
     if (tag && !/^[a-z0-9_.]{2,30}$/.test(tag)) {
@@ -154,7 +160,7 @@ export default function MembersView({
         avatar_color: eColor,
         tag_name: tag,
       })
-      .eq("id", member.user_id);
+      .eq("id", userId);
     if (error) {
       toast(
         error.code === "23505"
@@ -167,6 +173,7 @@ export default function MembersView({
     setEditId(null);
     toast("Profil uložen.");
     load();
+    if (allUsers) loadAll();
   }
 
   async function remove(member: Membership) {
@@ -281,12 +288,103 @@ export default function MembersView({
       )}
 
       {tab === "all" && isSuperAdmin ? (
-        <AllUsersPanel
-          users={allUsers}
-          loading={allLoading}
-          error={allError}
-          currentUserId={currentUserId}
-        />
+        allLoading ? (
+          <p className="p-4 text-ink-soft/70">Načítám…</p>
+        ) : allError ? (
+          <p className="p-4 text-sm text-danger">{allError}</p>
+        ) : !allUsers?.length ? (
+          <p className="p-4 text-ink-soft/70">Žádní uživatelé.</p>
+        ) : (
+          <div className="divide-y divide-line/70 panel">
+            {allUsers.map((u) => (
+              <div key={u.id}>
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <Avatar profile={u} colorKey={u.id} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm">
+                      {u.full_name || u.email}
+                      {u.tag_name && (
+                        <span className="ml-1.5 text-xs text-accent">
+                          @{u.tag_name}
+                        </span>
+                      )}
+                      {u.id === currentUserId && (
+                        <span className="text-ink-soft/70"> (ty)</span>
+                      )}
+                      {u.is_super_admin && (
+                        <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">
+                          super-admin
+                        </span>
+                      )}
+                      {u.status === "pending" && (
+                        <span
+                          className="ml-1.5 rounded bg-black/5 px-1.5 py-0.5 text-xs text-ink-soft"
+                          title="Pozván, ale ještě si nenastavil heslo"
+                        >
+                          čeká na aktivaci
+                        </span>
+                      )}
+                    </p>
+                    <p className="truncate text-xs text-ink-soft/70">{u.email}</p>
+                    {u.memberships.length ? (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {u.memberships.map((m) => (
+                          <span
+                            key={m.workspaceId}
+                            className="inline-flex items-center gap-1 rounded bg-black/5 px-1.5 py-0.5 text-xs text-ink-soft"
+                          >
+                            {m.workspaceName}
+                            <span
+                              className={
+                                m.role === "admin"
+                                  ? "text-amber-700"
+                                  : "text-ink-soft/60"
+                              }
+                            >
+                              · {m.role}
+                            </span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="mt-1 text-xs text-ink-soft/50">V žádné firmě</p>
+                    )}
+                  </div>
+                  <button
+                    onClick={() =>
+                      editId === u.id ? setEditId(null) : startEdit(u)
+                    }
+                    aria-expanded={editId === u.id}
+                    className={`rounded-md px-2 py-1 text-xs hover:bg-black/5 ${
+                      editId === u.id
+                        ? "bg-accent-soft text-accent"
+                        : "text-ink-soft"
+                    }`}
+                  >
+                    Upravit
+                  </button>
+                </div>
+
+                {editId === u.id && (
+                  <ProfileEditForm
+                    email={u.email}
+                    colorKey={u.id}
+                    eName={eName}
+                    setEName={setEName}
+                    eInitials={eInitials}
+                    setEInitials={setEInitials}
+                    eColor={eColor}
+                    setEColor={setEColor}
+                    eTag={eTag}
+                    setETag={setETag}
+                    onCancel={() => setEditId(null)}
+                    onSave={() => saveEdit(u.id)}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+        )
       ) : (
       <div className="divide-y divide-line/70 panel">
         {members.map((member) => (
@@ -313,7 +411,9 @@ export default function MembersView({
               </div>
               <button
                 onClick={() =>
-                  editId === member.user_id ? setEditId(null) : startEdit(member)
+                  editId === member.user_id
+                    ? setEditId(null)
+                    : startEdit({ id: member.user_id, ...member.profiles })
                 }
                 aria-expanded={editId === member.user_id}
                 className={`rounded-md px-2 py-1 text-xs hover:bg-black/5 ${
@@ -353,100 +453,20 @@ export default function MembersView({
             </div>
 
             {editId === member.user_id && (
-              <div className="space-y-2 border-t border-line/50 bg-black/[.015] px-3 py-3">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Avatar
-                    profile={{
-                      full_name: eName,
-                      email: member.profiles?.email,
-                      avatar_initials: eInitials,
-                      avatar_color: eColor,
-                    }}
-                    colorKey={member.user_id}
-                    size="lg"
-                  />
-                  <input
-                    type="text"
-                    value={eName}
-                    onChange={(e) => setEName(e.target.value)}
-                    placeholder="Jméno a příjmení"
-                    aria-label="Jméno a příjmení"
-                    className="input min-w-44 flex-1"
-                  />
-                  <input
-                    type="text"
-                    value={eInitials}
-                    onChange={(e) => setEInitials(e.target.value)}
-                    maxLength={3}
-                    placeholder={avatarInitials({
-                      full_name: eName,
-                      email: member.profiles?.email,
-                    })}
-                    aria-label="Iniciály (max 3 znaky)"
-                    title="Iniciály — prázdné se odvodí ze jména"
-                    className="input w-16 text-center uppercase"
-                  />
-                  <span className="inline-flex items-center gap-0.5">
-                    <span className="text-sm text-ink-soft/70">@</span>
-                    <input
-                      type="text"
-                      value={eTag}
-                      onChange={(e) => setETag(e.target.value)}
-                      maxLength={30}
-                      placeholder="tag"
-                      aria-label="Tag name (bez zavináče)"
-                      title="Unikátní tag, např. kostikova"
-                      className="input w-32 lowercase"
-                    />
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <span className="text-xs text-ink-soft/70">Barva:</span>
-                  {AVATAR_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setEColor(color)}
-                      aria-label={`Barva ${color}`}
-                      aria-pressed={eColor === color}
-                      style={{ background: color }}
-                      className={`h-6 w-6 rounded-full transition-transform ${
-                        eColor === color
-                          ? "scale-110 ring-2 ring-ink ring-offset-1"
-                          : "hover:scale-105"
-                      }`}
-                    />
-                  ))}
-                  <input
-                    type="color"
-                    value={eColor || "#0e7569"}
-                    onChange={(e) => setEColor(e.target.value)}
-                    aria-label="Vlastní barva"
-                    title="Vlastní barva"
-                    className="h-6 w-8 cursor-pointer rounded border border-line bg-transparent"
-                  />
-                  {eColor && (
-                    <button
-                      onClick={() => setEColor("")}
-                      className="btn-ghost px-2 py-0.5 text-xs"
-                    >
-                      Automatická
-                    </button>
-                  )}
-                  <span className="flex-1" />
-                  <button
-                    onClick={() => setEditId(null)}
-                    className="btn-ghost px-2 py-1 text-xs"
-                  >
-                    Zrušit
-                  </button>
-                  <button
-                    onClick={() => saveEdit(member)}
-                    className="btn-primary px-3 py-1 text-xs"
-                  >
-                    Uložit
-                  </button>
-                </div>
-              </div>
+              <ProfileEditForm
+                email={member.profiles?.email}
+                colorKey={member.user_id}
+                eName={eName}
+                setEName={setEName}
+                eInitials={eInitials}
+                setEInitials={setEInitials}
+                eColor={eColor}
+                setEColor={setEColor}
+                eTag={eTag}
+                setETag={setETag}
+                onCancel={() => setEditId(null)}
+                onSave={() => saveEdit(member.user_id)}
+              />
             )}
           </div>
         ))}
@@ -456,75 +476,120 @@ export default function MembersView({
   );
 }
 
-function AllUsersPanel({
-  users,
-  loading,
-  error,
-  currentUserId,
+/** Inline editace profilu (jméno, iniciály, barva avataru, @tag). Stav drží
+    rodič — používá ho seznam členů firmy i seznam všech uživatelů. */
+function ProfileEditForm({
+  email,
+  colorKey,
+  eName,
+  setEName,
+  eInitials,
+  setEInitials,
+  eColor,
+  setEColor,
+  eTag,
+  setETag,
+  onCancel,
+  onSave,
 }: {
-  users: AppUser[] | null;
-  loading: boolean;
-  error: string | null;
-  currentUserId: string;
+  email?: string | null;
+  colorKey: string;
+  eName: string;
+  setEName: (v: string) => void;
+  eInitials: string;
+  setEInitials: (v: string) => void;
+  eColor: string;
+  setEColor: (v: string) => void;
+  eTag: string;
+  setETag: (v: string) => void;
+  onCancel: () => void;
+  onSave: () => void;
 }) {
-  if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
-  if (error) return <p className="p-4 text-sm text-danger">{error}</p>;
-  if (!users?.length)
-    return <p className="p-4 text-ink-soft/70">Žádní uživatelé.</p>;
-
   return (
-    <div className="divide-y divide-line/70 panel">
-      {users.map((u) => (
-        <div key={u.id} className="flex items-center gap-3 px-3 py-2">
-          <Avatar profile={u} colorKey={u.id} size="md" />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm">
-              {u.full_name || u.email}
-              {u.tag_name && (
-                <span className="ml-1.5 text-xs text-accent">@{u.tag_name}</span>
-              )}
-              {u.id === currentUserId && (
-                <span className="text-ink-soft/70"> (ty)</span>
-              )}
-              {u.is_super_admin && (
-                <span className="ml-1.5 rounded bg-amber-100 px-1.5 py-0.5 text-xs text-amber-800">
-                  super-admin
-                </span>
-              )}
-              {u.status === "pending" && (
-                <span
-                  className="ml-1.5 rounded bg-black/5 px-1.5 py-0.5 text-xs text-ink-soft"
-                  title="Pozván, ale ještě si nenastavil heslo"
-                >
-                  čeká na aktivaci
-                </span>
-              )}
-            </p>
-            <p className="truncate text-xs text-ink-soft/70">{u.email}</p>
-            {u.memberships.length ? (
-              <div className="mt-1 flex flex-wrap gap-1">
-                {u.memberships.map((m) => (
-                  <span
-                    key={m.workspaceId}
-                    className="inline-flex items-center gap-1 rounded bg-black/5 px-1.5 py-0.5 text-xs text-ink-soft"
-                  >
-                    {m.workspaceName}
-                    <span
-                      className={
-                        m.role === "admin" ? "text-amber-700" : "text-ink-soft/60"
-                      }
-                    >
-                      · {m.role}
-                    </span>
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-1 text-xs text-ink-soft/50">V žádné firmě</p>
-            )}
-          </div>
-        </div>
-      ))}
+    <div className="space-y-2 border-t border-line/50 bg-black/[.015] px-3 py-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Avatar
+          profile={{
+            full_name: eName,
+            email,
+            avatar_initials: eInitials,
+            avatar_color: eColor,
+          }}
+          colorKey={colorKey}
+          size="lg"
+        />
+        <input
+          type="text"
+          value={eName}
+          onChange={(e) => setEName(e.target.value)}
+          placeholder="Jméno a příjmení"
+          aria-label="Jméno a příjmení"
+          className="input min-w-44 flex-1"
+        />
+        <input
+          type="text"
+          value={eInitials}
+          onChange={(e) => setEInitials(e.target.value)}
+          maxLength={3}
+          placeholder={avatarInitials({ full_name: eName, email })}
+          aria-label="Iniciály (max 3 znaky)"
+          title="Iniciály — prázdné se odvodí ze jména"
+          className="input w-16 text-center uppercase"
+        />
+        <span className="inline-flex items-center gap-0.5">
+          <span className="text-sm text-ink-soft/70">@</span>
+          <input
+            type="text"
+            value={eTag}
+            onChange={(e) => setETag(e.target.value)}
+            maxLength={30}
+            placeholder="tag"
+            aria-label="Tag name (bez zavináče)"
+            title="Unikátní tag, např. kostikova"
+            className="input w-32 lowercase"
+          />
+        </span>
+      </div>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <span className="text-xs text-ink-soft/70">Barva:</span>
+        {AVATAR_COLORS.map((color) => (
+          <button
+            key={color}
+            onClick={() => setEColor(color)}
+            aria-label={`Barva ${color}`}
+            aria-pressed={eColor === color}
+            style={{ background: color }}
+            className={`h-6 w-6 rounded-full transition-transform ${
+              eColor === color
+                ? "scale-110 ring-2 ring-ink ring-offset-1"
+                : "hover:scale-105"
+            }`}
+          />
+        ))}
+        <input
+          type="color"
+          value={eColor || "#0e7569"}
+          onChange={(e) => setEColor(e.target.value)}
+          aria-label="Vlastní barva"
+          title="Vlastní barva"
+          className="h-6 w-8 cursor-pointer rounded border border-line bg-transparent"
+        />
+        {eColor && (
+          <button
+            onClick={() => setEColor("")}
+            className="btn-ghost px-2 py-0.5 text-xs"
+          >
+            Automatická
+          </button>
+        )}
+        <span className="flex-1" />
+        <button onClick={onCancel} className="btn-ghost px-2 py-1 text-xs">
+          Zrušit
+        </button>
+        <button onClick={onSave} className="btn-primary px-3 py-1 text-xs">
+          Uložit
+        </button>
+      </div>
     </div>
   );
 }
