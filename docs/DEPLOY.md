@@ -85,7 +85,8 @@ Reply-To. Postup:
    - `RESEND_WEBHOOK_SECRET` = `whsec_…`
 
 Notifikační e-maily pak mají Reply-To s podepsaným tokenem
-(`reply+<task>.<user>.<podpis>@reply.digitalized.cz`); odpověď se po
+(`r<token>@reply.digitalized.cz`, token = karta + příjemce + HMAC,
+vejde se do 64znakového limitu lokální části adresy); odpověď se po
 ověření podpisu a členství vloží jako komentář (citace původní zprávy
 se odřízne) a normálně notifikuje ostatní.
 

@@ -38,33 +38,50 @@ export async function sendEmail(
 
 import { createHmac, timingSafeEqual } from "crypto";
 
-export function replySignature(taskId: string, userId: string): string {
+/* Token musí projít e-mailovou validací: lokální část adresy smí mít
+   max 64 znaků, proto binárně: 16 B task + 16 B user + 8 B HMAC
+   → base64url (54 znaků) + prefix "r". */
+
+function uuidToBytes(id: string): Buffer {
+  return Buffer.from(id.replace(/-/g, ""), "hex");
+}
+
+function bytesToUuid(b: Buffer): string {
+  const h = b.toString("hex");
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-${h.slice(12, 16)}-${h.slice(16, 20)}-${h.slice(20)}`;
+}
+
+function replySignature(taskId: string, userId: string): Buffer {
   return createHmac("sha256", process.env.CRON_SECRET ?? "")
     .update(`${taskId}.${userId}`)
-    .digest("hex")
-    .slice(0, 24);
+    .digest()
+    .subarray(0, 8);
 }
 
 /** Reply-To adresa pro kartu+příjemce, nebo null když inbound není nastaven. */
 export function replyAddress(taskId: string, userId: string): string | null {
   const domain = process.env.REPLY_DOMAIN;
   if (!domain || !process.env.CRON_SECRET) return null;
-  return `reply+${taskId}.${userId}.${replySignature(taskId, userId)}@${domain}`;
+  const token = Buffer.concat([
+    uuidToBytes(taskId),
+    uuidToBytes(userId),
+    replySignature(taskId, userId),
+  ]).toString("base64url");
+  return `r${token}@${domain}`;
 }
 
-/** Ověří a rozloží token z adresy `reply+<task>.<user>.<sig>@…`. */
+/** Ověří a rozloží token z adresy `r<token>@…`. */
 export function parseReplyAddress(
   address: string
 ): { taskId: string; userId: string } | null {
-  const m = address
-    .toLowerCase()
-    .match(/^reply\+([0-9a-f-]{36})\.([0-9a-f-]{36})\.([0-9a-f]{24})@/);
+  const m = address.trim().match(/^r([A-Za-z0-9_-]{54})@/);
   if (!m) return null;
-  const [, taskId, userId, sig] = m;
+  const buf = Buffer.from(m[1], "base64url");
+  if (buf.length !== 40) return null;
+  const taskId = bytesToUuid(buf.subarray(0, 16));
+  const userId = bytesToUuid(buf.subarray(16, 32));
   const expected = replySignature(taskId, userId);
-  const a = Buffer.from(sig);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) return null;
+  if (!timingSafeEqual(buf.subarray(32), expected)) return null;
   return { taskId, userId };
 }
 
