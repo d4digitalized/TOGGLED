@@ -61,6 +61,10 @@ export default function CardModal({
   const [newSubtask, setNewSubtask] = useState("");
   const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
+  // našeptávač @zmínek v komentáři
+  const commentRef = useRef<HTMLInputElement>(null);
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [mentionActive, setMentionActive] = useState(0);
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -266,8 +270,60 @@ export default function CardModal({
 
   // ---------------------------------------------------------------- komentáře
 
+  // ---------------------------------------------------------------- zmínky
+
+  const mentionSuggestions =
+    mentionQuery === null
+      ? []
+      : members
+          .filter((m) => m.profiles?.tag_name)
+          .filter((m) => {
+            const q = mentionQuery.toLowerCase();
+            return (
+              m.profiles!.tag_name!.toLowerCase().startsWith(q) ||
+              (m.profiles?.full_name ?? "").toLowerCase().includes(q)
+            );
+          })
+          .slice(0, 6);
+
+  function onCommentChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const value = e.target.value;
+    setNewComment(value);
+    const caret = e.target.selectionStart ?? value.length;
+    const match = value.slice(0, caret).match(/@([a-zA-Z0-9_.]{0,30})$/);
+    setMentionQuery(match ? match[1] : null);
+    setMentionActive(0);
+  }
+
+  function pickMention(tag: string) {
+    const caret = commentRef.current?.selectionStart ?? newComment.length;
+    const before = newComment
+      .slice(0, caret)
+      .replace(/@[a-zA-Z0-9_.]{0,30}$/, `@${tag} `);
+    setNewComment(before + newComment.slice(caret));
+    setMentionQuery(null);
+    commentRef.current?.focus();
+  }
+
+  function onCommentKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (mentionQuery === null || mentionSuggestions.length === 0) return;
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setMentionActive((i) => Math.min(i + 1, mentionSuggestions.length - 1));
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setMentionActive((i) => Math.max(i - 1, 0));
+    } else if (e.key === "Enter" || e.key === "Tab") {
+      e.preventDefault();
+      pickMention(mentionSuggestions[mentionActive].profiles!.tag_name!);
+    } else if (e.key === "Escape") {
+      setMentionQuery(null);
+    }
+  }
+
   async function addComment(e: React.FormEvent) {
     e.preventDefault();
+    setMentionQuery(null);
     if (!newComment.trim()) return;
     await supabase.from("task_comments").insert({
       workspace_id: task.workspace_id,
@@ -540,13 +596,53 @@ export default function CardModal({
             </div>
           ))}
           <form onSubmit={addComment} className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Napsat komentář…"
-              value={newComment}
-              onChange={(e) => setNewComment(e.target.value)}
-              className="flex-1 input"
-            />
+            <div className="relative flex-1">
+              {mentionQuery !== null && mentionSuggestions.length > 0 && (
+                <ul
+                  role="listbox"
+                  aria-label="Zmínit uživatele"
+                  className="absolute bottom-full left-0 z-10 mb-1 w-64 overflow-hidden rounded-xl border border-line bg-surface p-1 shadow-lg"
+                >
+                  {mentionSuggestions.map((m, i) => (
+                    <li key={m.user_id} role="option" aria-selected={i === mentionActive}>
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault(); // neztratit fokus inputu
+                          pickMention(m.profiles!.tag_name!);
+                        }}
+                        onMouseEnter={() => setMentionActive(i)}
+                        className={`flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm ${
+                          i === mentionActive ? "bg-accent-soft" : ""
+                        }`}
+                      >
+                        <Avatar
+                          profile={m.profiles}
+                          colorKey={m.user_id}
+                          size="sm"
+                        />
+                        <span className="min-w-0 flex-1 truncate">
+                          {m.profiles?.full_name || m.profiles?.email}
+                        </span>
+                        <span className="text-xs text-accent">
+                          @{m.profiles?.tag_name}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <input
+                ref={commentRef}
+                type="text"
+                placeholder="Napsat komentář… (@ zmíní kolegu)"
+                value={newComment}
+                onChange={onCommentChange}
+                onKeyDown={onCommentKeyDown}
+                onBlur={() => setMentionQuery(null)}
+                className="w-full input"
+              />
+            </div>
             <button
               type="submit"
               className="btn-primary"

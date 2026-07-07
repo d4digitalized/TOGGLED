@@ -62,7 +62,9 @@ export default function TasksView({
         .order("name"),
       supabase
         .from("workspace_members")
-        .select("user_id, role, profiles(id, email, full_name, is_super_admin, avatar_initials, avatar_color)")
+        .select(
+          "user_id, role, profiles(id, email, full_name, is_super_admin, avatar_initials, avatar_color, tag_name)"
+        )
         .eq("workspace_id", wsId),
       supabase
         .from("task_assignees")
