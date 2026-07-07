@@ -30,7 +30,7 @@ function verifySvix(headers: Headers, payload: string): boolean {
   });
 }
 
-/** Z odpovědi odřízne citovanou původní zprávu a podpisy. */
+/** Z odpovědi odřízne citovanou původní zprávu a podpis. */
 function extractReply(text: string): string {
   const lines = text.replace(/\r\n/g, "\n").split("\n");
   const kept: string[] = [];
@@ -39,7 +39,10 @@ function extractReply(text: string): string {
       /^>/.test(line) ||
       /^(On .* wrote:|Dne .* napsal\(?a?\)?:?)/i.test(line) ||
       /^-{2,}\s*(Original Message|Původní zpráva)/i.test(line) ||
+      /^-{2,}\s*$/.test(line) || // standardní oddělovač podpisu „-- “
       /^_{5,}\s*$/.test(line) ||
+      /^(Odesláno z |Sent from my |Get Outlook for )/i.test(line) ||
+      /^(S pozdravem|S přátelským pozdravem|Best regards|Kind regards|S úctou)[,.!]?\s*$/i.test(line) ||
       /^Od:\s/.test(line) ||
       /^From:\s/.test(line)
     ) {
