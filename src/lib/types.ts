@@ -105,6 +105,58 @@ export type TaskComment = {
   profiles?: { full_name: string; email: string };
 };
 
+export type TaskAttachment = {
+  id: string;
+  workspace_id: string;
+  task_id: string;
+  uploaded_by: string | null;
+  file_name: string;
+  object_path: string;
+  mime_type: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+export type Checklist = {
+  id: string;
+  workspace_id: string;
+  task_id: string;
+  title: string;
+  position: number;
+  created_at: string;
+};
+
+export type ChecklistItem = {
+  id: string;
+  checklist_id: string;
+  content: string;
+  completed_at: string | null;
+  position: number;
+  created_at: string;
+};
+
+export type TaskActivityKind =
+  | "created"
+  | "moved_column"
+  | "moved_project"
+  | "due_changed"
+  | "priority_changed"
+  | "completed"
+  | "reopened"
+  | "assigned"
+  | "unassigned";
+
+export type TaskActivity = {
+  id: string;
+  workspace_id: string;
+  task_id: string;
+  actor_id: string | null;
+  kind: TaskActivityKind;
+  meta: Record<string, unknown>;
+  created_at: string;
+  profiles?: { full_name: string; email: string } | null;
+};
+
 export type TimeEntry = {
   id: string;
   workspace_id: string;

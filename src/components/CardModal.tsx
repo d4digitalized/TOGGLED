@@ -9,14 +9,55 @@ import { pingNotifyEmails } from "@/lib/notify";
 import { PRIORITIES, RECURRENCE_OPTIONS, priorityColor } from "@/lib/priority";
 import { projectColor } from "@/components/ProjectPicker";
 import Avatar from "@/components/Avatar";
+import CardAttachments from "@/components/CardAttachments";
+import CardChecklists from "@/components/CardChecklists";
 import type {
   Label,
   Membership,
   Project,
   Recurrence,
   Task,
+  TaskActivity,
   TaskComment,
 } from "@/lib/types";
+
+/** Věta aktivity v češtině podle typu události. */
+function activityText(a: TaskActivity): string {
+  const m = a.meta ?? {};
+  const to = m.to as string | number | null | undefined;
+  const from = m.from as string | number | null | undefined;
+  switch (a.kind) {
+    case "created":
+      return "vytvořil/a kartu";
+    case "moved_column":
+      return `přesunul/a kartu do sloupce „${to ?? "?"}"`;
+    case "moved_project":
+      return `přesunul/a kartu do projektu „${to ?? "?"}"`;
+    case "due_changed":
+      return to ? `nastavil/a termín na ${to}` : "zrušil/a termín";
+    case "priority_changed":
+      return `změnil/a prioritu na P${to}`;
+    case "completed":
+      return "dokončil/a kartu";
+    case "reopened":
+      return "znovu otevřel/a kartu";
+    case "assigned":
+      return `přiřadil/a ${(m.user as string) ?? "kolegu"}`;
+    case "unassigned":
+      return `odebral/a ${(m.user as string) ?? "kolegu"}`;
+    default:
+      return "upravil/a kartu";
+  }
+}
+
+function fmtStamp(iso: string): string {
+  return new Date(iso).toLocaleString("cs-CZ", {
+    day: "numeric",
+    month: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
 
 /** @tagy v textu komentáře zvýrazní barvou akcentu. */
 function CommentBody({ body }: { body: string }) {
@@ -62,6 +103,7 @@ export default function CardModal({
   const [recurrence, setRecurrence] = useState<string>(task.recurrence ?? "");
   const [done, setDone] = useState(!!task.completed_at);
   const [comments, setComments] = useState<TaskComment[]>([]);
+  const [activity, setActivity] = useState<TaskActivity[]>([]);
   const [newComment, setNewComment] = useState("");
   const [labels, setLabels] = useState<Label[]>([]);
   const [taskLabels, setTaskLabels] = useState<Set<string>>(new Set());
@@ -92,6 +134,16 @@ export default function CardModal({
       .eq("task_id", task.id)
       .order("created_at");
     setComments((data as TaskComment[]) ?? []);
+  }, [supabase, task.id]);
+
+  const loadActivity = useCallback(async () => {
+    const { data, error } = await supabase
+      .from("task_activity")
+      .select("*, profiles(full_name, email)")
+      .eq("task_id", task.id)
+      .order("created_at");
+    if (error) return; // tabulka nemusí existovat před migrací
+    setActivity((data as TaskActivity[]) ?? []);
   }, [supabase, task.id]);
 
   const loadLabels = useCallback(async () => {
@@ -147,11 +199,19 @@ export default function CardModal({
 
   useEffect(() => {
     loadComments();
+    loadActivity();
     loadLabels();
     loadSubtasks();
     loadAssignees();
     loadProjects();
-  }, [loadComments, loadLabels, loadSubtasks, loadAssignees, loadProjects]);
+  }, [
+    loadComments,
+    loadActivity,
+    loadLabels,
+    loadSubtasks,
+    loadAssignees,
+    loadProjects,
+  ]);
 
   // přiřadit lze jen členy projektu (admini vidí všechny projekty)
   const assignable = members.filter(
@@ -398,6 +458,17 @@ export default function CardModal({
   }
 
   const doneSubtasks = subtasks.filter((s) => s.completed_at).length;
+
+  // komentáře + systémová aktivita v jednom časovém toku
+  const timeline: {
+    id: string;
+    at: string;
+    comment?: TaskComment;
+    act?: TaskActivity;
+  }[] = [
+    ...comments.map((c) => ({ id: `c-${c.id}`, at: c.created_at, comment: c })),
+    ...activity.map((a) => ({ id: `a-${a.id}`, at: a.created_at, act: a })),
+  ].sort((x, y) => x.at.localeCompare(y.at));
 
   return (
     <div
@@ -652,6 +723,14 @@ export default function CardModal({
           </form>
         </div>
 
+            <CardChecklists taskId={task.id} workspaceId={task.workspace_id} />
+
+            <CardAttachments
+              taskId={task.id}
+              workspaceId={task.workspace_id}
+              userId={userId}
+            />
+
             {error && <p className="text-sm text-red-600">{error}</p>}
           </div>
 
@@ -661,35 +740,46 @@ export default function CardModal({
               Komentáře a aktivita
             </h3>
             <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-3">
-              {comments.length === 0 && (
-                <p className="text-xs text-ink-soft/70">Zatím žádné komentáře.</p>
+              {timeline.length === 0 && (
+                <p className="text-xs text-ink-soft/70">Zatím žádná aktivita.</p>
               )}
-          {comments.map((comment) => (
-            <div key={comment.id} className="rounded-lg bg-paper p-2">
-              <div className="flex items-baseline gap-2">
-                <span className="text-xs font-medium">
-                  {comment.profiles?.full_name || comment.profiles?.email}
-                </span>
-                <span className="text-[10px] text-ink-soft/70">
-                  {new Date(comment.created_at).toLocaleString("cs-CZ", {
-                    day: "numeric",
-                    month: "numeric",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                </span>
-                {comment.author_id === userId && (
-                  <button
-                    onClick={() => removeComment(comment)}
-                    className="ml-auto text-[10px] text-ink-soft/70 hover:text-danger"
-                  >
-                    smazat
-                  </button>
-                )}
-              </div>
-              <CommentBody body={comment.body} />
-            </div>
-          ))}
+              {timeline.map((row) =>
+                row.comment ? (
+                  <div key={row.id} className="rounded-lg border border-line bg-surface p-2">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-xs font-medium">
+                        {row.comment.profiles?.full_name ||
+                          row.comment.profiles?.email}
+                      </span>
+                      <span className="text-[10px] text-ink-soft/70">
+                        {fmtStamp(row.comment.created_at)}
+                      </span>
+                      {row.comment.author_id === userId && (
+                        <button
+                          onClick={() => removeComment(row.comment!)}
+                          className="ml-auto text-[10px] text-ink-soft/70 hover:text-danger"
+                        >
+                          smazat
+                        </button>
+                      )}
+                    </div>
+                    <CommentBody body={row.comment.body} />
+                  </div>
+                ) : (
+                  <p key={row.id} className="px-1 text-xs text-ink-soft/70">
+                    <span className="font-medium text-ink-soft">
+                      {row.act!.profiles?.full_name ||
+                        row.act!.profiles?.email ||
+                        "Systém"}
+                    </span>{" "}
+                    {activityText(row.act!)}
+                    <span className="text-ink-soft/50">
+                      {" · "}
+                      {fmtStamp(row.act!.created_at)}
+                    </span>
+                  </p>
+                )
+              )}
             </div>
             <form onSubmit={addComment} className="flex gap-2 border-t border-line p-3">
             <div className="relative flex-1">
