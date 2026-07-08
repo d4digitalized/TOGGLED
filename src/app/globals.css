@@ -135,3 +135,46 @@ body {
     color: var(--ink-soft);
   }
 }
+
+/* ---- Mobil ---- */
+
+/* iOS zoomuje při fokusu na pole s font-size < 16px. Na dotykových
+   šířkách proto formulářové prvky držíme na 16px (vizuál zůstává, jen
+   se neprovede nechtěný zoom). */
+@media (max-width: 640px) {
+  .input,
+  .input-quiet,
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
+/* Bezpečné zóny (notch / gesture bar). Použití: třídy níže přidávají
+   odsazení jen o velikost výřezu, na zařízeních bez výřezu jsou 0. */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+.h-safe-bottom {
+  height: env(safe-area-inset-bottom);
+}
+
+/* Plynulý setrvačný scroll pro vodorovné kontejnery (kanban) na iOS. */
+.scroll-touch {
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
+}
+
+/* Vypnout modré poklepové zvýraznění na dotyku, ať UI působí nativně. */
+@media (pointer: coarse) {
+  a,
+  button,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+}

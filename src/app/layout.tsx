@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Familjen_Grotesk, Geist, Geist_Mono } from "next/font/google";
 import Toaster from "@/components/Toaster";
 import ConfirmDialog from "@/components/ConfirmDialog";
@@ -22,6 +22,15 @@ const display = Familjen_Grotesk({
 export const metadata: Metadata = {
   title: "Toggled",
   description: "Nástěnky a měření času pro firmu",
+};
+
+// Mobil: šířka podle zařízení, kryjeme výřez (notch) přes viewport-fit.
+// Pinch-zoom vědomě NEomezujeme — kvůli přístupnosti.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+  themeColor: "#ffffff",
 };
 
 export default function RootLayout({

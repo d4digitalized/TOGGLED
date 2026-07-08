@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Sidebar from "@/components/Sidebar";
+import MobileNav from "@/components/MobileNav";
 import TimerBar from "@/components/TimerBar";
 import type { Workspace } from "@/lib/types";
 
@@ -51,8 +52,17 @@ export default async function WorkspaceLayout({
       />
       <div className="flex min-w-0 flex-1 flex-col">
         <TimerBar wsId={wsId} userId={user.id} />
-        <main className="flex-1 space-y-4 p-4">{children}</main>
+        {/* spodní padding drží obsah nad mobilním tab-barem (jen pod md) */}
+        <main className="flex-1 space-y-4 p-4 pb-24 md:pb-4">{children}</main>
       </div>
+      <MobileNav
+        wsId={wsId}
+        workspaces={workspaces}
+        isAdmin={isAdmin}
+        isSuperAdmin={isSuperAdmin}
+        userName={profile?.full_name || profile?.email || ""}
+        userProfile={profile}
+      />
     </div>
   );
 }

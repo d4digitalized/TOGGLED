@@ -6,7 +6,8 @@
       "Bash(npx tsc *)",
       "Bash(nslookup -type=TXT resend._domainkey.digitalized.cz 8.8.8.8)",
       "Bash(nslookup -type=MX send.digitalized.cz 8.8.8.8)",
-      "Bash(nslookup -type=TXT send.digitalized.cz 8.8.8.8)"
+      "Bash(nslookup -type=TXT send.digitalized.cz 8.8.8.8)",
+      "Bash(node _fix-email.mjs)"
     ]
   }
 }
