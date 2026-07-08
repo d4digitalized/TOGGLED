@@ -213,39 +213,69 @@ export default function CardModal({
     loadProjects,
   ]);
 
-  // přiřadit lze jen členy projektu (admini vidí všechny projekty)
-  const assignable = members.filter(
-    (m) => projectMembers.has(m.user_id) || m.role === "admin"
-  );
-
   // kdo smí měnit čí přiřazení: admin komukoli, člen sobě + s grantem
   const me = members.find((m) => m.user_id === userId);
   const isAdmin = !!(me?.profiles?.is_super_admin || me?.role === "admin");
   const canManage = (id: string) => isAdmin || id === userId || grants.has(id);
 
-  async function toggleAssignee(userId: string) {
-    const wasOn = assignees.has(userId);
+  // admin smí přiřadit kohokoli z firmy (nečlena projektu na projekt doplníme
+  // při přiřazení, jinak by úkol neviděl); člen vybírá jen z členů projektu
+  const assignable = isAdmin
+    ? members
+    : members.filter((m) => projectMembers.has(m.user_id) || m.role === "admin");
+
+  async function toggleAssignee(targetId: string) {
+    const wasOn = assignees.has(targetId);
     setAssignees((prev) => {
       const next = new Set(prev);
-      if (wasOn) next.delete(userId);
-      else next.add(userId);
+      if (wasOn) next.delete(targetId);
+      else next.add(targetId);
       return next;
     });
-    const { error } = wasOn
-      ? await supabase
-          .from("task_assignees")
-          .delete()
-          .eq("task_id", task.id)
-          .eq("user_id", userId)
-      : await supabase
-          .from("task_assignees")
-          .insert({ task_id: task.id, user_id: userId });
+
+    if (wasOn) {
+      const { error } = await supabase
+        .from("task_assignees")
+        .delete()
+        .eq("task_id", task.id)
+        .eq("user_id", targetId);
+      if (error) {
+        toast("Změna řešitele se nezdařila.", "error");
+        loadAssignees();
+      }
+      return;
+    }
+
+    // řešitel musí být člen projektu, jinak by úkol vůbec neviděl (RLS).
+    // Admin proto nečlena při přiřazení rovnou doplní na projekt.
+    if (isAdmin && !projectMembers.has(targetId)) {
+      const { error: pmError } = await supabase
+        .from("project_members")
+        .upsert(
+          { project_id: task.project_id, user_id: targetId },
+          { onConflict: "project_id,user_id", ignoreDuplicates: true }
+        );
+      if (pmError) {
+        toast("Nepodařilo se přidat uživatele na projekt.", "error");
+        setAssignees((prev) => {
+          const next = new Set(prev);
+          next.delete(targetId);
+          return next;
+        });
+        return;
+      }
+      setProjectMembers((prev) => new Set(prev).add(targetId));
+    }
+
+    const { error } = await supabase
+      .from("task_assignees")
+      .insert({ task_id: task.id, user_id: targetId });
     if (error) {
       toast("Změna řešitele se nezdařila.", "error");
       loadAssignees();
       return;
     }
-    if (!wasOn) pingNotifyEmails();
+    pingNotifyEmails();
   }
 
   async function save() {
