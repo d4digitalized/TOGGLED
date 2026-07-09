@@ -12,8 +12,11 @@ import { ProjectDot } from "@/components/ProjectPicker";
 import Avatar, { type AvatarLike } from "@/components/Avatar";
 import type { Membership, Task } from "@/lib/types";
 
-// Modal se načte až při otevření karty — nezatěžuje základní bundle routy.
+// Modaly se načtou až při otevření — nezatěžují základní bundle routy.
 const CardModal = dynamic(() => import("@/components/CardModal"), { ssr: false });
+const NewTaskDialog = dynamic(() => import("@/components/NewTaskDialog"), {
+  ssr: false,
+});
 
 type Bucket = { key: string; label: string; tasks: Task[]; accent?: boolean };
 
@@ -64,6 +67,7 @@ export default function MyTasksView({
   const [members, setMembers] = useState<Membership[]>(cached?.members ?? []);
   const [loading, setLoading] = useState(!cached);
   const [openTask, setOpenTask] = useState<Task | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const load = useCallback(async () => {
     const [mineRes, memRes] = await Promise.all([
@@ -209,6 +213,39 @@ export default function MyTasksView({
             </div>
           </div>
         ))
+      )}
+
+      <button
+        type="button"
+        onClick={() => setAddOpen(true)}
+        aria-label="Přidat úkol"
+        title="Přidat úkol"
+        className="fixed bottom-6 right-6 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-accent text-white shadow-lg transition hover:bg-[#0a5d54] hover:shadow-xl active:scale-95"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          strokeLinecap="round"
+          className="h-6 w-6"
+          aria-hidden
+        >
+          <path d="M12 5v14M5 12h14" />
+        </svg>
+      </button>
+
+      {addOpen && (
+        <NewTaskDialog
+          wsId={wsId}
+          userId={userId}
+          members={members}
+          onClose={() => setAddOpen(false)}
+          onCreated={() => {
+            setAddOpen(false);
+            load();
+          }}
+        />
       )}
 
       {openTask && (
