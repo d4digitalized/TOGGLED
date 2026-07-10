@@ -45,9 +45,7 @@ export default function InboxView({
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [grants, setGrants] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
-  const [newTitle, setNewTitle] = useState("");
   const [openTask, setOpenTask] = useState<Task | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
   // rozpracované třídění — ref kvůli merge v load() bez závodu se setState
   const sortRef = useRef<Record<string, SortState>>({});
   const [, bump] = useState(0);
@@ -147,25 +145,6 @@ export default function InboxView({
   const assignable = members.filter(
     (m) => isAdmin || m.user_id === userId || grants.has(m.user_id)
   );
-
-  // ---------------------------------------------------------------- capture
-
-  async function addTask(e: React.FormEvent) {
-    e.preventDefault();
-    const title = newTitle.trim();
-    if (!title) return;
-    const { error } = await supabase
-      .from("tasks")
-      .insert({ workspace_id: wsId, title, position: 0 });
-    if (error) {
-      toast("Úkol se nepodařilo přidat.", "error");
-      return;
-    }
-    setNewTitle("");
-    inputRef.current?.focus(); // hned další myšlenka
-    load();
-    notifyTasksChanged();
-  }
 
   // ------------------------------------------------------- třídění (průběžné)
   // Každá volba se hned zapíše do DB, ale řádek visí dál — jde měnit názor.
@@ -325,28 +304,10 @@ export default function InboxView({
         <h1 className="font-display text-lg font-semibold">Inbox</h1>
         <p className="text-xs text-ink-soft/70">
           {tasks.length === 0
-            ? "Vše zatříděno. 🎉"
+            ? "Vše zatříděno. 🎉 Nový úkol založíš tlačítkem +."
             : `${tasks.length} nezatříděných — vyber projekt, řešitele či follow-up a potvrď Utříděno`}
         </p>
       </div>
-
-      {/* rychlé nabouchání: napiš, Enter, piš další */}
-      <form onSubmit={addTask} className="panel flex items-center gap-2 p-2">
-        <input
-          ref={inputRef}
-          autoFocus
-          type="text"
-          placeholder="Nabouchej myšlenku a stiskni Enter…"
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          className="input-quiet flex-1 px-2 py-1.5 text-sm"
-        />
-        {newTitle.trim() && (
-          <button type="submit" className="btn-primary px-3 py-1 text-sm">
-            Přidat
-          </button>
-        )}
-      </form>
 
       {tasks.length > 0 && (
         <TaskGroup label="Nezatříděné" count={tasks.length}>

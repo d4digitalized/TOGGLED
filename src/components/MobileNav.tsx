@@ -45,7 +45,7 @@ export default function MobileNav({
   const [mounted, setMounted] = useState(false); // drawer v DOM
   const [shown, setShown] = useState(false); // stav pro animaci
 
-  const primary = primaryNavItems(wsId, canTaskforce);
+  const primary = primaryNavItems(wsId, canDelegate, canTaskforce);
   const sections = buildNavSections(
     wsId,
     isAdmin,
@@ -113,7 +113,14 @@ export default function MobileNav({
                   active ? "text-accent" : "text-ink-soft"
                 }`}
               >
-                <NavIcon d={ICONS[item.icon]} className="h-6 w-6 shrink-0" />
+                <span className="relative">
+                  <NavIcon d={ICONS[item.icon]} className="h-6 w-6 shrink-0" />
+                  {item.badge && userId && (
+                    <span className="absolute -right-3 -top-1.5">
+                      <InboxCount wsId={wsId} userId={userId} />
+                    </span>
+                  )}
+                </span>
                 <span className="max-w-full truncate">{item.label}</span>
               </Link>
             );

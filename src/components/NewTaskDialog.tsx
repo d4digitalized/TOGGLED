@@ -38,8 +38,9 @@ export default function NewTaskDialog({
   const supabase = createClient();
   const [title, setTitle] = useState("");
   const [projectId, setProjectId] = useState<string | null>(null);
-  // řešitel a follow-up jako PersonRef ("u:<userId>" | "c:<contactId>")
-  const [assignee, setAssignee] = useState<PersonRef | null>(`u:${userId}`);
+  // řešitel a follow-up jako PersonRef ("u:<userId>" | "c:<contactId>");
+  // výchozí nikdo — holý úkol (jen text) spadne do Inboxu k pozdějšímu třídění
+  const [assignee, setAssignee] = useState<PersonRef | null>(null);
   const [waitSel, setWaitSel] = useState<PersonRef | null>(null);
   const [assignToo, setAssignToo] = useState(false);
   const [isPrivate, setIsPrivate] = useState(false);
@@ -238,7 +239,9 @@ export default function NewTaskDialog({
     }
 
     setSaving(false);
-    toast(`Úkol přidán: ${name}`);
+    // bez projektu, řešitele i follow-upu → úkol čeká na třídění v Inboxu
+    const toInbox = !projectId && refs.size === 0 && !waitSel;
+    toast(toInbox ? `Úkol přidán do Inboxu: ${name}` : `Úkol přidán: ${name}`);
     onCreated();
   }
 

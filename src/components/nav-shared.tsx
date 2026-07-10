@@ -124,11 +124,25 @@ export function buildNavSections(
   ];
 }
 
-/** Hlavní položky pro spodní tab-bar na mobilu. */
-export function primaryNavItems(wsId: string, canTaskforce = false): NavItem[] {
+/** Hlavní položky pro spodní tab-bar na mobilu: Inbox · Čekám na · Moje ·
+    Task force (Projekty a Report žijí v Menu). */
+export function primaryNavItems(
+  wsId: string,
+  canDelegate = false,
+  canTaskforce = false,
+): NavItem[] {
   return [
+    { href: `/w/${wsId}/inbox`, label: "Inbox", icon: "inbox", badge: true },
+    ...(canDelegate
+      ? [
+          {
+            href: `/w/${wsId}/delegated`,
+            label: "Čekám na",
+            icon: "hourglass" as const,
+          },
+        ]
+      : []),
     { href: `/w/${wsId}/my`, label: "Moje", icon: "user" },
-    { href: `/w/${wsId}`, label: "Projekty", icon: "board" },
     ...(canTaskforce
       ? [
           {
@@ -138,7 +152,6 @@ export function primaryNavItems(wsId: string, canTaskforce = false): NavItem[] {
           },
         ]
       : []),
-    { href: `/w/${wsId}/time`, label: "Report", icon: "clock" },
   ];
 }
 
