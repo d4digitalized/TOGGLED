@@ -18,9 +18,20 @@ const USER_ICON =
   "M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z";
 const HOURGLASS_ICON = "M7 3h10M7 21h10M8 3v4l4 5 4-5V3M8 21v-4l4-5 4 5v4";
 
+/** Rozpracované třídění řádku: co už uživatel vybral (zapsáno v DB). */
+type SortState = {
+  project: string | null;
+  assignee: string | null;
+  /** "u:<userId>" | "c:<contactId>" */
+  waiting: string | null;
+};
+
+const EMPTY_SORT: SortState = { project: null, assignee: null, waiting: null };
+
 /** GTD Inbox: rychle nabouchané úkoly bez projektu, řešitele a follow-upu.
-    Jakákoli třídící akce (projekt / řešitel / čekám na / hotovo / smazat)
-    úkol z Inboxu odsune — seznam se přirozeně vyprazdňuje k nule. */
+    Třídící volby se ukládají hned, ale řádek zůstává (jde měnit názor),
+    dokud uživatel nepotvrdí „Utříděno" — teprve pak z Inboxu zmizí.
+    Po novém načtení stránky se zatříděné úkoly už nenačtou. */
 export default function InboxView({
   wsId,
   userId,
@@ -39,6 +50,19 @@ export default function InboxView({
   const [newTitle, setNewTitle] = useState("");
   const [openTask, setOpenTask] = useState<Task | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  // rozpracované třídění — ref kvůli merge v load() bez závodu se setState
+  const sortRef = useRef<Record<string, SortState>>({});
+  const [, bump] = useState(0);
+
+  function patchSort(taskId: string, patch: Partial<SortState> | null) {
+    if (patch === null) delete sortRef.current[taskId];
+    else
+      sortRef.current[taskId] = {
+        ...(sortRef.current[taskId] ?? EMPTY_SORT),
+        ...patch,
+      };
+    bump((x) => x + 1);
+  }
 
   const load = useCallback(async () => {
     const [tRes, memRes, fuRes, grantRes, cRes] = await Promise.all([
@@ -72,12 +96,19 @@ export default function InboxView({
         : Promise.resolve({ data: [] as Contact[] }),
     ]);
     const waiting = new Set((fuRes.data ?? []).map((r) => r.task_id as string));
-    const rows = ((tRes.data ?? []) as unknown as (Task & {
+    const fresh = ((tRes.data ?? []) as unknown as (Task & {
       task_assignees?: { user_id: string }[];
     })[]).filter(
       (t) => (t.task_assignees ?? []).length === 0 && !waiting.has(t.id)
     );
-    setTasks(rows);
+    // rozpracované (už zatříděné v DB, ale nepotvrzené) řádky nechat viset
+    setTasks((prev) => {
+      const freshIds = new Set(fresh.map((t) => t.id));
+      const inProgress = prev.filter(
+        (t) => !freshIds.has(t.id) && sortRef.current[t.id]
+      );
+      return [...fresh, ...inProgress];
+    });
     setMembers((memRes.data as unknown as Membership[]) ?? []);
     setGrants(new Set((grantRes.data ?? []).map((r) => r.target_id as string)));
     setContacts((cRes.data as Contact[]) ?? []);
@@ -134,10 +165,11 @@ export default function InboxView({
     notifyTasksChanged();
   }
 
-  // ---------------------------------------------------------------- třídění
+  // ------------------------------------------------------- třídění (průběžné)
+  // Každá volba se hned zapíše do DB, ale řádek visí dál — jde měnit názor.
+  // Z Inboxu ho odsune až „Utříděno" (nebo hotovo/smazat/reload stránky).
 
   async function setProject(task: Task, projectId: string | null) {
-    if (!projectId) return;
     const { error } = await supabase
       .from("tasks")
       .update({ project_id: projectId, column_id: null })
@@ -146,54 +178,57 @@ export default function InboxView({
       toast("Přesun do projektu se nezdařil.", "error");
       return;
     }
-    toast(
-      `„${task.title}" → ${projects.find((p) => p.id === projectId)?.name ?? "projekt"}`
-    );
-    load();
-    notifyTasksChanged();
+    patchSort(task.id, { project: projectId });
   }
 
   async function assign(task: Task, targetId: string | null) {
-    if (!targetId) return;
-    const { error } = await supabase
-      .from("task_assignees")
-      .insert({ task_id: task.id, user_id: targetId });
-    if (error) {
-      toast("Řešitele se nepodařilo přiřadit.", "error");
-      return;
+    const prev = sortRef.current[task.id]?.assignee ?? null;
+    if (prev === targetId) return;
+    if (prev) {
+      await supabase
+        .from("task_assignees")
+        .delete()
+        .eq("task_id", task.id)
+        .eq("user_id", prev);
     }
-    const m = members.find((x) => x.user_id === targetId);
-    toast(
-      targetId === userId
-        ? `„${task.title}" → Moje úkoly`
-        : `„${task.title}" → ${m?.profiles?.full_name || m?.profiles?.email}`
-    );
-    pingNotifyEmails();
-    load();
-    notifyTasksChanged();
+    if (targetId) {
+      const { error } = await supabase
+        .from("task_assignees")
+        .insert({ task_id: task.id, user_id: targetId });
+      if (error) {
+        toast("Řešitele se nepodařilo přiřadit.", "error");
+        return;
+      }
+      pingNotifyEmails();
+    }
+    patchSort(task.id, { assignee: targetId });
   }
 
-  /** value: "u:<userId>" nebo "c:<contactId>" — jako v kartě. */
-  async function setWaiting(task: Task, value: string) {
-    if (!value) return;
-    const id = value.slice(2);
-    const { error } = await supabase.from("task_followups").insert({
-      task_id: task.id,
-      workspace_id: wsId,
-      created_by: userId,
-      waiting_user_id: value.startsWith("u:") ? id : null,
-      waiting_contact_id: value.startsWith("c:") ? id : null,
-    });
-    if (error) {
-      toast("Čekání se nepodařilo nastavit.", "error");
-      return;
+  /** value: "u:<userId>" nebo "c:<contactId>" — jako v kartě; null = zrušit. */
+  async function setWaiting(task: Task, value: string | null) {
+    const prev = sortRef.current[task.id]?.waiting ?? null;
+    if (prev === value) return;
+    if (prev) {
+      await supabase.from("task_followups").delete().eq("task_id", task.id);
     }
-    toast(`„${task.title}" → Delegované`);
-    load();
-    notifyTasksChanged();
+    if (value) {
+      const id = value.slice(2);
+      const { error } = await supabase.from("task_followups").insert({
+        task_id: task.id,
+        workspace_id: wsId,
+        created_by: userId,
+        waiting_user_id: value.startsWith("u:") ? id : null,
+        waiting_contact_id: value.startsWith("c:") ? id : null,
+      });
+      if (error) {
+        toast("Čekání se nepodařilo nastavit.", "error");
+        return;
+      }
+    }
+    patchSort(task.id, { waiting: value });
   }
 
-  /** „➕ založit projekt" z pickeru (jen admin — RLS) a rovnou přesunout. */
+  /** „➕ založit projekt" z pickeru (jen admin — RLS) a rovnou přiřadit. */
   async function createProjectAndMove(task: Task, name: string) {
     const { data, error } = await supabase
       .from("projects")
@@ -227,6 +262,29 @@ export default function InboxView({
     await setWaiting(task, `c:${data.id}`);
   }
 
+  // ---------------------------------------------------------------- odsunutí
+
+  function dismiss(task: Task) {
+    patchSort(task.id, null);
+    setTasks((prev) => prev.filter((t) => t.id !== task.id));
+    notifyTasksChanged(); // počítadlo v navigaci
+  }
+
+  function markSorted(task: Task) {
+    const s = sortRef.current[task.id];
+    const where = [
+      s?.project ? (projects.find((p) => p.id === s.project)?.name ?? "projekt") : null,
+      s?.assignee
+        ? s.assignee === userId
+          ? "Moje úkoly"
+          : members.find((m) => m.user_id === s.assignee)?.profiles?.full_name
+        : null,
+      s?.waiting ? "Delegované" : null,
+    ].filter(Boolean);
+    toast(`Utříděno: ${task.title}${where.length ? ` → ${where.join(", ")}` : ""}`);
+    dismiss(task);
+  }
+
   async function done(task: Task) {
     const { error } = await supabase
       .from("tasks")
@@ -237,8 +295,7 @@ export default function InboxView({
       return;
     }
     toast(`Hotovo: ${task.title}`);
-    load();
-    notifyTasksChanged();
+    dismiss(task);
   }
 
   async function remove(task: Task) {
@@ -249,8 +306,7 @@ export default function InboxView({
     });
     if (!ok) return;
     await supabase.from("tasks").delete().eq("id", task.id);
-    load();
-    notifyTasksChanged();
+    dismiss(task);
   }
 
   if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
@@ -262,7 +318,7 @@ export default function InboxView({
         <p className="text-xs text-ink-soft/70">
           {tasks.length === 0
             ? "Vše zatříděno. 🎉"
-            : `${tasks.length} nezatříděných — přiřaď projekt, řešitele, nebo follow-up`}
+            : `${tasks.length} nezatříděných — vyber projekt, řešitele či follow-up a potvrď Utříděno`}
         </p>
       </div>
 
@@ -286,90 +342,113 @@ export default function InboxView({
 
       {tasks.length > 0 && (
         <div className="panel divide-y divide-line/50">
-          {tasks.map((task) => (
-            <div key={task.id} className="flex flex-wrap items-center gap-2 px-3 py-2">
-              <input
-                type="checkbox"
-                checked={false}
-                onChange={() => done(task)}
-                aria-label={`Hotovo: ${task.title}`}
-                className="h-4 w-4"
-              />
-              <button
-                onClick={() => setOpenTask(task)}
-                className="min-w-0 flex-1 truncate text-left text-sm hover:text-accent"
-                title="Otevřít detail"
+          {tasks.map((task) => {
+            const s = sortRef.current[task.id] ?? EMPTY_SORT;
+            const touched = !!(s.project || s.assignee || s.waiting);
+            return (
+              <div
+                key={task.id}
+                className="flex flex-wrap items-center gap-2 px-3 py-2"
               >
-                {task.title}
-              </button>
+                <input
+                  type="checkbox"
+                  checked={false}
+                  onChange={() => done(task)}
+                  aria-label={`Hotovo: ${task.title}`}
+                  className="h-4 w-4"
+                />
+                <button
+                  onClick={() => setOpenTask(task)}
+                  className="min-w-0 flex-1 truncate text-left text-sm hover:text-accent"
+                  title="Otevřít detail"
+                >
+                  {task.title}
+                </button>
 
-              {/* třídící akce — každá úkol z Inboxu odsune */}
-              <div className="flex items-center gap-1.5">
-                <ProjectPicker
-                  projects={projects}
-                  value={null}
-                  onChange={(id) => setProject(task, id)}
-                  align="right"
-                  hideLabelOnMobile
-                  alwaysSearch
-                  onCreate={
-                    isAdmin ? (name) => createProjectAndMove(task, name) : undefined
-                  }
-                />
-                <Picker
-                  options={assignable.map((m) => ({
-                    id: m.user_id as string | null,
-                    label:
-                      m.user_id === userId
-                        ? `${m.profiles?.full_name || m.profiles?.email} (já)`
-                        : m.profiles?.full_name || m.profiles?.email || "?",
-                  }))}
-                  value={null}
-                  onChange={(id) => assign(task, id)}
-                  placeholder="Řešitel"
-                  iconPath={USER_ICON}
-                  ariaLabel="Řešitel"
-                  align="right"
-                  hideLabelOnMobile
-                  alwaysSearch
-                />
-                {canDelegate && (
-                  <Picker
-                    options={[
-                      ...members
-                        .filter((m) => m.user_id !== userId)
-                        .map((m) => ({
-                          id: `u:${m.user_id}` as string | null,
-                          label: `👤 ${m.profiles?.full_name || m.profiles?.email}`,
-                        })),
-                      ...contacts.map((c) => ({
-                        id: `c:${c.id}` as string | null,
-                        label: `👻 ${c.name}`,
-                      })),
-                    ]}
-                    value={null}
-                    onChange={(id) => id && setWaiting(task, id)}
-                    placeholder="Čekám na"
-                    iconPath={HOURGLASS_ICON}
-                    ariaLabel="Čekám na"
+                {/* třídící volby — ukládají se hned, řádek visí do potvrzení */}
+                <div className="flex items-center gap-1.5">
+                  <ProjectPicker
+                    projects={projects}
+                    value={s.project}
+                    onChange={(id) => setProject(task, id)}
                     align="right"
                     hideLabelOnMobile
                     alwaysSearch
-                    onCreate={(name) => createContactAndWait(task, name)}
-                    createLabel="založit kontakt"
+                    onCreate={
+                      isAdmin ? (name) => createProjectAndMove(task, name) : undefined
+                    }
                   />
-                )}
-                <button
-                  onClick={() => remove(task)}
-                  aria-label={`Smazat ${task.title}`}
-                  title="Smazat"
-                  className="rounded px-1.5 py-1 text-sm text-ink-soft/50 hover:text-danger"
-                >
-                  ×
-                </button>
+                  <Picker
+                    options={[
+                      { id: null, label: "Bez řešitele" },
+                      ...assignable.map((m) => ({
+                        id: m.user_id as string | null,
+                        label:
+                          m.user_id === userId
+                            ? `${m.profiles?.full_name || m.profiles?.email} (já)`
+                            : m.profiles?.full_name || m.profiles?.email || "?",
+                      })),
+                    ]}
+                    value={s.assignee}
+                    onChange={(id) => assign(task, id)}
+                    placeholder="Řešitel"
+                    iconPath={USER_ICON}
+                    ariaLabel="Řešitel"
+                    align="right"
+                    hideLabelOnMobile
+                    alwaysSearch
+                  />
+                  {canDelegate && (
+                    <Picker
+                      options={[
+                        { id: null, label: "— nikdo —" },
+                        ...members
+                          .filter((m) => m.user_id !== userId)
+                          .map((m) => ({
+                            id: `u:${m.user_id}` as string | null,
+                            label: `👤 ${m.profiles?.full_name || m.profiles?.email}`,
+                          })),
+                        ...contacts.map((c) => ({
+                          id: `c:${c.id}` as string | null,
+                          label: `👻 ${c.name}`,
+                        })),
+                      ]}
+                      value={s.waiting}
+                      onChange={(id) => setWaiting(task, id)}
+                      placeholder="Čekám na"
+                      iconPath={HOURGLASS_ICON}
+                      ariaLabel="Čekám na"
+                      align="right"
+                      hideLabelOnMobile
+                      alwaysSearch
+                      onCreate={(name) => createContactAndWait(task, name)}
+                      createLabel="založit kontakt"
+                    />
+                  )}
+                  <button
+                    onClick={() => markSorted(task)}
+                    disabled={!touched}
+                    title={
+                      touched
+                        ? "Hotovo s tříděním — odsunout z Inboxu"
+                        : "Nejdřív vyber projekt, řešitele nebo follow-up"
+                    }
+                    className="rounded-md border border-accent/50 px-2 py-1 text-xs text-accent transition-colors hover:bg-accent-soft disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    Utříděno ✓
+                  </button>
+                  <button
+                    onClick={() => remove(task)}
+                    aria-label={`Smazat ${task.title}`}
+                    title="Smazat"
+                    className="rounded px-1.5 py-1 text-sm text-ink-soft/50 hover:text-danger"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

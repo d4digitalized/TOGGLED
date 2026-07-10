@@ -32,8 +32,10 @@ v navigaci s živým počítadlem. Obsah = moje otevřené úkoly bez projektu,
 bez řešitele a bez follow-upu (žádná nová tabulka, jen pohled). Nahoře
 trvalý input „napiš a Enter" pro rychlé zachytávání; třídění přímo v řádku:
 projekt (→ nástěnka), řešitel (→ jeho Moje úkoly), ⏳ čekám na
-(→ Delegované, jen delegátoři), hotovo, smazat. Každá akce úkol z Inboxu
-odsune — seznam se vyprazdňuje k nule. Výchozí stránka zůstává Moje úkoly.
+(→ Delegované, jen delegátoři), hotovo, smazat. Volby se ukládají hned,
+ale řádek visí (jde měnit názor), dokud uživatel nepotvrdí **Utříděno** —
+teprve pak z Inboxu zmizí (a po novém načtení stránky se už nenačte).
+Výchozí stránka zůstává Moje úkoly.
 
 ## Pitch
 
