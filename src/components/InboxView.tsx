@@ -9,6 +9,7 @@ import { pingNotifyEmails } from "@/lib/notify";
 import { notifyTasksChanged, TASKS_CHANGED_EVENT } from "@/lib/tasksChanged";
 import ProjectPicker from "@/components/ProjectPicker";
 import PersonPicker, { HOURGLASS_ICON } from "@/components/PersonPicker";
+import TaskRow, { TaskGroup } from "@/components/TaskRow";
 import type { Contact, Membership, Project, Task } from "@/lib/types";
 
 // Modal se načte až při otevření karty — nezatěžuje základní bundle routy.
@@ -348,32 +349,20 @@ export default function InboxView({
       </form>
 
       {tasks.length > 0 && (
-        <div className="panel divide-y divide-line/50">
+        <TaskGroup label="Nezatříděné" count={tasks.length}>
           {tasks.map((task) => {
             const s = sortRef.current[task.id] ?? EMPTY_SORT;
             const touched = !!(s.project || s.assignee || s.waiting);
             return (
-              <div
+              <TaskRow
                 key={task.id}
-                className="flex flex-wrap items-center gap-2 px-3 py-2"
-              >
-                <input
-                  type="checkbox"
-                  checked={false}
-                  onChange={() => done(task)}
-                  aria-label={`Hotovo: ${task.title}`}
-                  className="h-4 w-4"
-                />
-                <button
-                  onClick={() => setOpenTask(task)}
-                  className="min-w-0 flex-1 truncate text-left text-sm hover:text-accent"
-                  title="Otevřít detail"
-                >
-                  {task.title}
-                </button>
-
-                {/* třídící volby — ukládají se hned, řádek visí do potvrzení */}
-                <div className="flex items-center gap-1.5">
+                task={task}
+                onOpen={setOpenTask}
+                onToggleDone={done}
+                showProject={false}
+                /* třídící volby — ukládají se hned, řádek visí do potvrzení */
+                actions={
+                  <>
                   <ProjectPicker
                     projects={projects}
                     value={s.project}
@@ -437,11 +426,12 @@ export default function InboxView({
                   >
                     ×
                   </button>
-                </div>
-              </div>
+                  </>
+                }
+              />
             );
           })}
-        </div>
+        </TaskGroup>
       )}
 
       {openTask && (

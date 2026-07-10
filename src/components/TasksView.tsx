@@ -6,8 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { posBetween } from "@/lib/position";
 import { toast } from "@/lib/toast";
 import { pingNotifyEmails } from "@/lib/notify";
-import { PRIORITIES, priorityColor } from "@/lib/priority";
-import { fmtDate } from "@/lib/format";
+import { PRIORITIES } from "@/lib/priority";
 import { cacheGet, cacheSet } from "@/lib/viewCache";
 import { TASKS_CHANGED_EVENT } from "@/lib/tasksChanged";
 import ProjectPicker, { ProjectDot } from "@/components/ProjectPicker";
@@ -17,6 +16,7 @@ import PersonPicker, {
   type PersonRef,
 } from "@/components/PersonPicker";
 import Avatar from "@/components/Avatar";
+import TaskRow, { TaskGroup } from "@/components/TaskRow";
 import type { Contact, Membership, Project, Task } from "@/lib/types";
 
 // Modal karty se dogeneruje až při otevření (mimo základní bundle routy).
@@ -275,7 +275,22 @@ export default function TasksView({
         (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999") ||
         a.title.localeCompare(b.title, "cs")
     );
-  const today = new Date().toISOString().slice(0, 10);
+
+  // skupiny po projektech (v pořadí řazení; bez projektu na konci)
+  const projectGroups: { key: string; label: string; tasks: Task[] }[] = [];
+  const groupIndex = new Map<string, number>();
+  for (const t of visible) {
+    const key = t.project_id ?? "none";
+    if (!groupIndex.has(key)) {
+      groupIndex.set(key, projectGroups.length);
+      projectGroups.push({
+        key,
+        label: t.projects?.name ?? "Bez projektu",
+        tasks: [],
+      });
+    }
+    projectGroups[groupIndex.get(key)!].tasks.push(t);
+  }
 
   return (
     <div className="space-y-4">
@@ -385,105 +400,56 @@ export default function TasksView({
           Žádné úkoly neodpovídají filtrům.
         </p>
       ) : (
-        <div className="panel overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-line/70 text-left text-xs text-ink-soft">
-                <th className="w-8 px-3 py-2" aria-label="Hotovo" />
-                <th className="px-2 py-2 font-medium">Úkol</th>
-                <th className="hidden px-2 py-2 font-medium md:table-cell">Projekt</th>
-                <th className="hidden px-2 py-2 font-medium lg:table-cell">Sloupec</th>
-                <th className="hidden px-2 py-2 font-medium sm:table-cell">Řešitelé</th>
-                <th className="px-2 py-2 font-medium">Termín</th>
-              </tr>
-            </thead>
-            <tbody>
-              {visible.map((task) => {
-                const flag = priorityColor(task.priority ?? 4);
-                const overdue =
-                  !task.completed_at && task.due_date && task.due_date < today;
-                const taskAssignees = (assignees[task.id] ?? [])
-                  .map((id) => members.find((m) => m.user_id === id))
-                  .filter((m): m is Membership => !!m);
-                return (
-                  <tr
-                    key={task.id}
-                    onClick={() => setOpenTask(task)}
-                    className="cursor-pointer border-b border-line/50 last:border-0 hover:bg-black/[.02]"
-                    style={flag ? { boxShadow: `inset 3px 0 0 ${flag}` } : undefined}
-                  >
-                    <td className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="checkbox"
-                        checked={!!task.completed_at}
-                        onChange={() => toggleDone(task)}
-                        aria-label={`Hotovo: ${task.title}`}
-                        className="h-4 w-4"
-                      />
-                    </td>
-                    <td className="max-w-72 px-2 py-2">
-                      <span
-                        className={`block truncate ${
-                          task.completed_at ? "text-ink-soft/70 line-through" : ""
-                        }`}
-                      >
-                        {task.title}
-                        {task.recurrence && (
-                          <span className="ml-1 text-xs text-ink-soft/50" title="Opakovaný úkol">
-                            ↻
+        projectGroups.map((group) => (
+          <TaskGroup
+            key={group.key}
+            label={
+              <span className="inline-flex items-center gap-1.5">
+                <ProjectDot
+                  id={group.key === "none" ? null : group.key}
+                  className="h-2 w-2"
+                />
+                {group.label}
+              </span>
+            }
+            count={group.tasks.length}
+          >
+            {group.tasks.map((task) => {
+              const taskAssignees = (assignees[task.id] ?? [])
+                .map((id) => members.find((m) => m.user_id === id))
+                .filter((m): m is Membership => !!m);
+              return (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  onOpen={setOpenTask}
+                  onToggleDone={toggleDone}
+                  showProject={false}
+                  meta={
+                    taskAssignees.length > 0 && (
+                      <span className="flex -space-x-1.5">
+                        {taskAssignees.slice(0, 4).map((m) => (
+                          <Avatar
+                            key={m.user_id}
+                            profile={m.profiles}
+                            colorKey={m.user_id}
+                            size="sm"
+                            className="border border-surface"
+                          />
+                        ))}
+                        {taskAssignees.length > 4 && (
+                          <span className="flex h-5 w-5 items-center justify-center rounded-full border border-surface bg-black/10 text-[9px] font-medium text-ink-soft">
+                            +{taskAssignees.length - 4}
                           </span>
                         )}
                       </span>
-                      {/* na mobilu projekt jako podřádek (sloupec Projekt je skrytý) */}
-                      <span className="mt-0.5 flex items-center gap-1.5 truncate text-xs text-ink-soft md:hidden">
-                        <ProjectDot id={task.project_id} className="h-2 w-2" />
-                        {task.projects?.name ?? "—"}
-                      </span>
-                    </td>
-                    <td className="hidden whitespace-nowrap px-2 py-2 text-ink-soft md:table-cell">
-                      <span className="inline-flex items-center gap-1.5">
-                        <ProjectDot id={task.project_id} className="h-2 w-2" />
-                        {task.projects?.name ?? "—"}
-                      </span>
-                    </td>
-                    <td className="hidden whitespace-nowrap px-2 py-2 text-ink-soft lg:table-cell">
-                      {task.board_columns?.name ?? "—"}
-                    </td>
-                    <td className="hidden px-2 py-2 sm:table-cell">
-                      {taskAssignees.length === 0 ? (
-                        <span className="text-ink-soft/50">—</span>
-                      ) : (
-                        <span className="flex -space-x-1.5">
-                          {taskAssignees.slice(0, 4).map((m) => (
-                            <Avatar
-                              key={m.user_id}
-                              profile={m.profiles}
-                              colorKey={m.user_id}
-                              size="sm"
-                              className="border border-surface"
-                            />
-                          ))}
-                          {taskAssignees.length > 4 && (
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full border border-surface bg-black/10 text-[9px] font-medium text-ink-soft">
-                              +{taskAssignees.length - 4}
-                            </span>
-                          )}
-                        </span>
-                      )}
-                    </td>
-                    <td
-                      className={`whitespace-nowrap px-2 py-2 ${
-                        overdue ? "font-medium text-red-600" : "text-ink-soft"
-                      }`}
-                    >
-                      {task.due_date ? fmtDate(task.due_date) : "—"}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
+                    )
+                  }
+                />
+              );
+            })}
+          </TaskGroup>
+        ))
       )}
 
       {openTask && (

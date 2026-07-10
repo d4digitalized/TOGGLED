@@ -5,11 +5,10 @@ import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/lib/toast";
 import { pingNotifyEmails } from "@/lib/notify";
-import { priorityColor } from "@/lib/priority";
 import { fmtDate } from "@/lib/format";
 import { cacheGet, cacheSet } from "@/lib/viewCache";
 import { TASKS_CHANGED_EVENT } from "@/lib/tasksChanged";
-import { ProjectDot } from "@/components/ProjectPicker";
+import TaskRow, { TaskGroup, dueBuckets } from "@/components/TaskRow";
 import type { Membership, Task, TaskFollowup } from "@/lib/types";
 
 // Modal se načte až při otevření karty — nezatěžuje základní bundle routy.
@@ -100,7 +99,9 @@ export default function DelegatedView({
 
   if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
 
-  const today = new Date().toISOString().slice(0, 10);
+  // stejné termínové skupiny jako Moje úkoly; chip čekání per úkol
+  const followupByTask = new Map(rows.map((r) => [r.task_id, r]));
+  const groups = dueBuckets(rows.map((r) => r.tasks!).filter(Boolean));
 
   return (
     <div className="w-full space-y-4">
@@ -118,56 +119,36 @@ export default function DelegatedView({
           Na nikoho nečekáš. Follow-up nastavíš na kartě úkolu volbou „Čekám na…".
         </p>
       ) : (
-        <div className="panel divide-y divide-line/50">
-          {rows.map((row) => {
-            const task = row.tasks!;
-            const flag = priorityColor(task.priority ?? 4);
-            const overdue = task.due_date && task.due_date < today;
-            return (
-              <div
-                key={row.task_id}
-                onClick={() => setOpenTask(task)}
-                style={flag ? { boxShadow: `inset 3px 0 0 ${flag}` } : undefined}
-                className="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-black/[.02]"
-              >
-                <input
-                  type="checkbox"
-                  checked={false}
-                  onChange={() => toggleDone(task)}
-                  onClick={(e) => e.stopPropagation()}
-                  aria-label={`Hotovo: ${task.title}`}
-                  className="h-4 w-4"
+        groups.map((group) => (
+          <TaskGroup
+            key={group.key}
+            label={group.label}
+            count={group.tasks.length}
+            accent={group.accent}
+          >
+            {group.tasks.map((task) => {
+              const row = followupByTask.get(task.id);
+              return (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  onOpen={setOpenTask}
+                  onToggleDone={toggleDone}
+                  meta={
+                    row && (
+                      <span
+                        className="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800"
+                        title={`Follow-up od ${fmtDate(row.created_at.slice(0, 10))}`}
+                      >
+                        ⏳ {waitingName(row)} · {waitingFor(row.created_at)}
+                      </span>
+                    )
+                  }
                 />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm">{task.title}</p>
-                  <p className="truncate text-xs text-ink-soft/70">
-                    <ProjectDot
-                      id={task.project_id}
-                      className="mr-1 h-2 w-2 align-middle"
-                    />
-                    {task.projects?.name ?? "—"}
-                    {task.board_columns?.name ? ` · ${task.board_columns.name}` : ""}
-                  </p>
-                </div>
-                <span
-                  className="whitespace-nowrap rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-800"
-                  title={`Follow-up od ${fmtDate(row.created_at.slice(0, 10))}`}
-                >
-                  ⏳ {waitingName(row)} · {waitingFor(row.created_at)}
-                </span>
-                {task.due_date && (
-                  <span
-                    className={`whitespace-nowrap text-xs ${
-                      overdue ? "font-medium text-red-600" : "text-ink-soft"
-                    }`}
-                  >
-                    {fmtDate(task.due_date)}
-                  </span>
-                )}
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </TaskGroup>
+        ))
       )}
 
       {openTask && (

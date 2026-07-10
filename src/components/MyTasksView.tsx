@@ -5,47 +5,14 @@ import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/lib/toast";
 import { pingNotifyEmails } from "@/lib/notify";
-import { priorityColor } from "@/lib/priority";
-import { fmtDate } from "@/lib/format";
 import { cacheGet, cacheSet } from "@/lib/viewCache";
 import { TASKS_CHANGED_EVENT } from "@/lib/tasksChanged";
-import { ProjectDot } from "@/components/ProjectPicker";
+import TaskRow, { TaskGroup, dueBuckets } from "@/components/TaskRow";
 import Avatar, { type AvatarLike } from "@/components/Avatar";
 import type { Membership, Task } from "@/lib/types";
 
 // Modal se načte až při otevření karty — nezatěžuje základní bundle routy.
 const CardModal = dynamic(() => import("@/components/CardModal"), { ssr: false });
-
-type Bucket = { key: string; label: string; tasks: Task[]; accent?: boolean };
-
-function isoDay(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-/** Rozdělí úkoly podle termínu: po termínu / dnes / tento týden / později / bez termínu. */
-function buckets(tasks: Task[]): Bucket[] {
-  const now = new Date();
-  const today = isoDay(now);
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() + ((7 - now.getDay()) % 7));
-  const endOfWeek = isoDay(sunday);
-
-  const groups: Bucket[] = [
-    { key: "overdue", label: "Po termínu", tasks: [], accent: true },
-    { key: "today", label: "Dnes", tasks: [] },
-    { key: "week", label: "Tento týden", tasks: [] },
-    { key: "later", label: "Později", tasks: [] },
-    { key: "nodate", label: "Bez termínu", tasks: [] },
-  ];
-  for (const t of tasks) {
-    if (!t.due_date) groups[4].tasks.push(t);
-    else if (t.due_date < today) groups[0].tasks.push(t);
-    else if (t.due_date === today) groups[1].tasks.push(t);
-    else if (t.due_date <= endOfWeek) groups[2].tasks.push(t);
-    else groups[3].tasks.push(t);
-  }
-  return groups.filter((g) => g.tasks.length > 0);
-}
 
 export default function MyTasksView({
   wsId,
@@ -131,8 +98,7 @@ export default function MyTasksView({
 
   if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
 
-  const groups = buckets(tasks);
-  const today = isoDay(new Date());
+  const groups = dueBuckets(tasks);
 
   return (
     <div className="w-full space-y-4">
@@ -154,81 +120,21 @@ export default function MyTasksView({
         </p>
       ) : (
         groups.map((group) => (
-          <div key={group.key} className="panel">
-            <h2
-              className={`border-b border-line/70 px-3 py-2 text-sm font-semibold ${
-                group.accent ? "text-danger" : ""
-              }`}
-            >
-              {group.label}
-              <span className="ml-2 text-xs font-normal text-ink-soft/60">
-                {group.tasks.length}
-              </span>
-            </h2>
-            <div className="divide-y divide-line/50">
-              {group.tasks.map((task) => {
-                const flag = priorityColor(task.priority ?? 4);
-                const overdue = task.due_date && task.due_date < today;
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => setOpenTask(task)}
-                    style={flag ? { boxShadow: `inset 3px 0 0 ${flag}` } : undefined}
-                    className="flex cursor-pointer items-center gap-3 px-3 py-2 hover:bg-black/[.02]"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={false}
-                      onChange={() => toggleDone(task)}
-                      onClick={(e) => e.stopPropagation()}
-                      aria-label={`Hotovo: ${task.title}`}
-                      className="h-4 w-4"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm">
-                        {task.title}
-                        {task.recurrence && (
-                          <span
-                            className="ml-1 text-xs text-ink-soft/50"
-                            title="Opakovaný úkol"
-                          >
-                            ↻
-                          </span>
-                        )}
-                        {task.is_private && (
-                          <span
-                            className="ml-1 text-xs text-ink-soft/50"
-                            title="Skrytý úkol — vidíš ho jen ty"
-                          >
-                            🔒
-                          </span>
-                        )}
-                      </p>
-                      <p className="truncate text-xs text-ink-soft/70">
-                        <ProjectDot
-                          id={task.project_id}
-                          className="mr-1 h-2 w-2 align-middle"
-                        />
-                        {task.projects?.name ?? "—"}
-                        {task.board_columns?.name
-                          ? ` · ${task.board_columns.name}`
-                          : ""}
-                      </p>
-                    </div>
-                    {task.due_date && (
-                      <span
-                        className={`whitespace-nowrap text-xs ${
-                          overdue ? "font-medium text-red-600" : "text-ink-soft"
-                        }`}
-                      >
-                        {fmtDate(task.due_date)}
-                      </span>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          <TaskGroup
+            key={group.key}
+            label={group.label}
+            count={group.tasks.length}
+            accent={group.accent}
+          >
+            {group.tasks.map((task) => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                onOpen={setOpenTask}
+                onToggleDone={toggleDone}
+              />
+            ))}
+          </TaskGroup>
         ))
       )}
 
