@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cacheClear } from "@/lib/viewCache";
 import Avatar from "@/components/Avatar";
+import InboxCount from "@/components/InboxCount";
 import {
   ICONS,
   NavIcon,
@@ -22,6 +23,7 @@ export default function Sidebar({
   isAdmin,
   isSuperAdmin,
   canDelegate = false,
+  userId,
   userName,
   userProfile,
 }: {
@@ -30,6 +32,7 @@ export default function Sidebar({
   isAdmin: boolean;
   isSuperAdmin: boolean;
   canDelegate?: boolean;
+  userId?: string;
   userName: string;
   userProfile?: Profile | null;
 }) {
@@ -121,6 +124,9 @@ export default function Sidebar({
               >
                 <NavIcon d={ICONS[item.icon]} />
                 {!collapsed && <span className="truncate">{item.label}</span>}
+                {!collapsed && item.badge && userId && (
+                  <InboxCount wsId={wsId} userId={userId} />
+                )}
               </Link>
             ))}
           </div>

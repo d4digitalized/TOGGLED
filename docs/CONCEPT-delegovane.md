@@ -27,6 +27,14 @@ mít cizí řešitele; tiché „Čekám na" na nich funguje.
 admin na Členech odemyká delegaci (pole Čekám na, sekce na kartě, stránka
 Delegované) a skryté úkoly; admini mají obojí vždy.
 
+**Inbox (3. kolo, pro všechny — bez odemykání):** GTD schránka nahoře
+v navigaci s živým počítadlem. Obsah = moje otevřené úkoly bez projektu,
+bez řešitele a bez follow-upu (žádná nová tabulka, jen pohled). Nahoře
+trvalý input „napiš a Enter" pro rychlé zachytávání; třídění přímo v řádku:
+projekt (→ nástěnka), řešitel (→ jeho Moje úkoly), ⏳ čekám na
+(→ Delegované, jen delegátoři), hotovo, smazat. Každá akce úkol z Inboxu
+odsune — seznam se vyprazdňuje k nule. Výchozí stránka zůstává Moje úkoly.
+
 ## Pitch
 
 Když zadám úkol jinému člověku („Martine, udělej studii"), moje práce zadáním

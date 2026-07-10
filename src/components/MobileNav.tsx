@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { cacheClear } from "@/lib/viewCache";
+import InboxCount from "@/components/InboxCount";
 import Avatar from "@/components/Avatar";
 import {
   ICONS,
@@ -24,6 +25,7 @@ export default function MobileNav({
   isAdmin,
   isSuperAdmin,
   canDelegate = false,
+  userId,
   userName,
   userProfile,
 }: {
@@ -32,6 +34,7 @@ export default function MobileNav({
   isAdmin: boolean;
   isSuperAdmin: boolean;
   canDelegate?: boolean;
+  userId?: string;
   userName: string;
   userProfile?: Profile | null;
 }) {
@@ -187,6 +190,9 @@ export default function MobileNav({
                     >
                       <NavIcon d={ICONS[item.icon]} />
                       <span className="truncate">{item.label}</span>
+                      {item.badge && userId && (
+                        <InboxCount wsId={wsId} userId={userId} />
+                      )}
                     </Link>
                   ))}
                 </div>

@@ -52,6 +52,7 @@ export default async function WorkspaceLayout({
         isAdmin={isAdmin}
         isSuperAdmin={isSuperAdmin}
         canDelegate={canDelegate}
+        userId={user.id}
         userName={profile?.full_name || profile?.email || ""}
         userProfile={profile}
       />
@@ -66,6 +67,7 @@ export default async function WorkspaceLayout({
         isAdmin={isAdmin}
         isSuperAdmin={isSuperAdmin}
         canDelegate={canDelegate}
+        userId={user.id}
         userName={profile?.full_name || profile?.email || ""}
         userProfile={profile}
       />

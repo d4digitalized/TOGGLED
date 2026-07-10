@@ -18,6 +18,8 @@ export const ICONS = {
   menu: "M4 6h16M4 12h16M4 18h16",
   close: "M18 6L6 18M6 6l12 12",
   hourglass: "M7 3h10M7 21h10M8 3v4l4 5 4-5V3M8 21v-4l4-5 4 5v4",
+  inbox:
+    "M22 12h-6l-2 3h-4l-2-3H2M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z",
 } as const;
 
 export type IconName = keyof typeof ICONS;
@@ -45,7 +47,13 @@ export function NavIcon({
   );
 }
 
-export type NavItem = { href: string; label: string; icon: IconName };
+export type NavItem = {
+  href: string;
+  label: string;
+  icon: IconName;
+  /** true = vedle položky se ukazuje živé počítadlo Inboxu */
+  badge?: boolean;
+};
 export type NavSection = { title: string; items: NavItem[] };
 
 /** Kompletní sekce menu podle rolí (Sidebar / drawer). */
@@ -59,6 +67,7 @@ export function buildNavSections(
     {
       title: "Sledování",
       items: [
+        { href: `/w/${wsId}/inbox`, label: "Inbox", icon: "inbox", badge: true },
         { href: `/w/${wsId}/my`, label: "Moje úkoly", icon: "user" },
         // Delegované jen pro odemknuté delegátory (admin / can_delegate)
         ...(canDelegate
