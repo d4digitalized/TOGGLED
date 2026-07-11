@@ -183,6 +183,54 @@ export function registerTools(server: McpServer): void {
   );
 
   server.registerTool(
+    "get_task",
+    {
+      title: "Detail úkolu",
+      description:
+        "Detail úkolu včetně popisu — použij např. před update_task_description, když se má popis doplnit a ne přepsat.",
+      inputSchema: { task_id: z.string() },
+    },
+    async ({ task_id }, extra) => {
+      const { client } = clientFor(extra);
+      const { data, error } = await client
+        .from("tasks")
+        .select(
+          "id, title, description, due_date, priority, completed_at, projects(name), task_assignees(user_id, profiles(full_name))"
+        )
+        .eq("id", task_id)
+        .single();
+      if (error || !data)
+        return fail("Úkol nenalezen nebo k němu nemáš přístup.");
+      return ok(data);
+    }
+  );
+
+  server.registerTool(
+    "update_task_description",
+    {
+      title: "Upravit popis úkolu",
+      description:
+        "Nastaví popis existujícího úkolu (přepíše ten stávající). Pro doplnění si nejdřív načti úkol a pošli celý nový text.",
+      inputSchema: {
+        task_id: z.string(),
+        description: z.string().describe("nový popis úkolu; prázdný řetězec popis smaže"),
+      },
+    },
+    async ({ task_id, description }, extra) => {
+      const { client } = clientFor(extra);
+      const { data, error } = await client
+        .from("tasks")
+        .update({ description })
+        .eq("id", task_id)
+        .select("id, title")
+        .single();
+      if (error || !data)
+        return fail("Úkol nenalezen nebo k němu nemáš přístup.");
+      return ok({ updated: data.id, title: data.title });
+    }
+  );
+
+  server.registerTool(
     "assign_task",
     {
       title: "Přiřadit řešitele",
