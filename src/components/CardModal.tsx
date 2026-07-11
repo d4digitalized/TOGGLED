@@ -736,8 +736,9 @@ export default function CardModal({
           className="input w-full px-3 py-2"
         />
 
-        {/* jeden řešitel — výběr nahradí předchozího (člen i duch) */}
-        <div className="flex flex-wrap items-center gap-1.5">
+        {/* řešitel + vedoucí na jednom řádku */}
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <div className="flex items-center gap-1.5">
           <span className="text-xs text-ink-soft/70">Řešitel:</span>
           {canEditAssignee ? (
             <PersonPicker
@@ -770,12 +771,12 @@ export default function CardModal({
           ) : (
             <span className="text-xs text-ink-soft/50">nikdo</span>
           )}
-        </div>
+          </div>
 
-        {/* vedoucí — nastavuje jen admin; ostatní jen vidí, kdo úkol vede */}
-        {(isAdmin || leadId) && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-xs text-ink-soft/70">Vedoucí:</span>
+          {/* vedoucí — nastavuje jen admin; ostatní jen vidí, kdo úkol vede */}
+          {(isAdmin || leadId) && (
+            <div className="flex items-center gap-1.5">
+              <span className="text-xs text-ink-soft/70">Vedoucí:</span>
             {isAdmin ? (
               <PersonPicker
                 wsId={task.workspace_id}
@@ -804,8 +805,9 @@ export default function CardModal({
                 );
               })()
             )}
-          </div>
-        )}
+            </div>
+          )}
+        </div>
 
         {/* follow-up: úkol čeká na dodání členem či externím kontaktem;
             nastavují jen delegátoři (admin / can_delegate), chip vidí všichni */}
