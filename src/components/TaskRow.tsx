@@ -83,6 +83,7 @@ export default function TaskRow({
   meta,
   actions,
   showProject = true,
+  compactMobile = false,
 }: {
   task: Task;
   onOpen: (task: Task) => void;
@@ -92,6 +93,9 @@ export default function TaskRow({
   /** ovládání vpravo za termínem (třídění v Inboxu); kliky nepropadají na řádek */
   actions?: React.ReactNode;
   showProject?: boolean;
+  /** na mobilu jen text úkolu (skryje checkbox i akce) — přehledný Inbox;
+      nastavení i „hotovo" se dělá po otevření karty */
+  compactMobile?: boolean;
 }) {
   const flag = priorityColor(task.priority ?? 4);
   const done = !!task.completed_at;
@@ -109,7 +113,7 @@ export default function TaskRow({
         onChange={() => onToggleDone(task)}
         onClick={(e) => e.stopPropagation()}
         aria-label={`Hotovo: ${task.title}`}
-        className="h-4 w-4"
+        className={`h-4 w-4 ${compactMobile ? "hidden sm:block" : ""}`}
       />
       <div className="min-w-0 flex-1">
         <p className={`truncate text-sm ${done ? "text-ink-soft/70 line-through" : ""}`}>
@@ -153,11 +157,14 @@ export default function TaskRow({
         </span>
       )}
       {actions && (
-        // na mobilu akce padají na vlastní řádek (w-full) — jinak by řádkové
-        // pickery smáčkly titul skoro na nulu a úkol nešel ťuknutím otevřít
+        // compactMobile: na mobilu akce skryté (řeší se v kartě po otevření),
+        // na desktopu inline. Jinak akce padají na vlastní řádek, ať se titul
+        // nesmáčkne a úkol jde ťuknutím otevřít.
         <div
           onClick={(e) => e.stopPropagation()}
-          className="flex w-full flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:flex-nowrap"
+          className={`w-full flex-wrap items-center justify-end gap-1.5 sm:w-auto sm:flex-nowrap ${
+            compactMobile ? "hidden sm:flex" : "flex"
+          }`}
         >
           {actions}
         </div>

@@ -321,6 +321,7 @@ export default function InboxView({
                 onOpen={setOpenTask}
                 onToggleDone={done}
                 showProject={false}
+                compactMobile
                 /* třídící volby — ukládají se hned, řádek visí do potvrzení */
                 actions={
                   <>
