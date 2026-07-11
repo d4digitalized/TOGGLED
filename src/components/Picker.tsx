@@ -1,12 +1,16 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type PickerOption = {
   id: string | null;
   label: string;
   /** Barva tečky před názvem; null = prázdná (obrysová) tečka, undefined = bez tečky. */
   dot?: string | null;
+  /** Vlastní vizuál před názvem (např. Avatar). Má přednost před tečkou/ikonou. */
+  avatar?: ReactNode;
+  /** Nabídne se až po zadání aspoň jednoho znaku (např. duchové/kontakty). */
+  deferred?: boolean;
 };
 
 export default function Picker({
@@ -50,7 +54,10 @@ export default function Picker({
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q ? options.filter((o) => o.label.toLowerCase().includes(q)) : options;
+    // prázdné hledání = jen „základní" možnosti (duchové/kontakty se objeví
+    // až po prvním znaku); s dotazem filtrujeme podle názvu napříč vším
+    if (!q) return options.filter((o) => !o.deferred);
+    return options.filter((o) => o.label.toLowerCase().includes(q));
   }, [options, query]);
 
   // „➕ založit" jen když je co zakládat a dotaz přesně nesedí na existující
@@ -122,7 +129,9 @@ export default function Picker({
             : "text-ink-soft/70 hover:bg-black/5 hover:text-ink-soft"
         }`}
       >
-        {selected?.dot !== undefined && selected ? (
+        {selected?.avatar !== undefined && selected ? (
+          selected.avatar
+        ) : selected?.dot !== undefined && selected ? (
           <span
             className="h-2.5 w-2.5 shrink-0 rounded-full"
             style={{ background: selected.dot ?? undefined }}
@@ -201,7 +210,9 @@ export default function Picker({
                       i === active ? "bg-accent-soft" : ""
                     } ${isSelected ? "font-medium text-accent" : "text-ink"}`}
                   >
-                    {opt.dot !== undefined && (
+                    {opt.avatar !== undefined ? (
+                      opt.avatar
+                    ) : opt.dot !== undefined ? (
                       <span
                         className={`h-2.5 w-2.5 shrink-0 rounded-full ${
                           opt.dot === null ? "border border-ink-soft/40" : ""
@@ -209,7 +220,7 @@ export default function Picker({
                         style={opt.dot ? { background: opt.dot } : undefined}
                         aria-hidden
                       />
-                    )}
+                    ) : null}
                     <span className="truncate">{opt.label}</span>
                     {isSelected && (
                       <svg

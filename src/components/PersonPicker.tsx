@@ -3,7 +3,20 @@
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/lib/toast";
 import Picker from "@/components/Picker";
+import Avatar from "@/components/Avatar";
 import type { Contact, Membership } from "@/lib/types";
+
+/** Kolečko s iniciálami pro ducha (kontakt bez účtu) — šedé, ať se odliší
+    od barevných avatarů skutečných členů. */
+function GhostAvatar({ name, id }: { name: string; id: string }) {
+  return (
+    <Avatar
+      profile={{ full_name: name, avatar_color: "#9ca3af" }}
+      colorKey={id}
+      size="sm"
+    />
+  );
+}
 
 export const USER_ICON =
   "M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z";
@@ -89,13 +102,22 @@ export default function PersonPicker({
         const name = m.profiles?.full_name || m.profiles?.email || "?";
         return {
           id: `u:${m.user_id}` as string | null,
-          label: m.user_id === userId ? `👤 ${name} (já)` : `👤 ${name}`,
+          label: m.user_id === userId ? `${name} (já)` : name,
+          avatar: (
+            <Avatar profile={m.profiles} colorKey={m.user_id} size="sm" />
+          ),
         };
       }),
     ...(allowGhosts
       ? contacts
           .filter((c) => !excluded.has(`c:${c.id}`))
-          .map((c) => ({ id: `c:${c.id}` as string | null, label: `👻 ${c.name}` }))
+          .map((c) => ({
+            id: `c:${c.id}` as string | null,
+            label: c.name,
+            avatar: <GhostAvatar name={c.name} id={c.id} />,
+            // duchové se v nabídce ukážou až po zadání prvního znaku
+            deferred: true,
+          }))
       : []),
   ];
 

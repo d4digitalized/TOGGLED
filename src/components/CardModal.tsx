@@ -278,58 +278,69 @@ export default function CardModal({
       ? members
       : members.filter((m) => projectMembers.has(m.user_id) || m.role === "admin");
 
-  async function toggleAssignee(targetId: string) {
-    const wasOn = assignees.has(targetId);
-    setAssignees((prev) => {
-      const next = new Set(prev);
-      if (wasOn) next.delete(targetId);
-      else next.add(targetId);
-      return next;
-    });
+  // jeden řešitel: první člen, jinak první duch, jinak nikdo
+  const currentMemberId = [...assignees][0] ?? null;
+  const currentGhostId = [...ghostAssignees][0] ?? null;
+  const currentAssigneeRef = currentMemberId
+    ? `u:${currentMemberId}`
+    : currentGhostId
+      ? `c:${currentGhostId}`
+      : null;
+  // cizí přiřazeného člena smí měnit jen kdo ho spravuje; ducha / prázdno kdokoli
+  const canEditAssignee = currentMemberId ? canManage(currentMemberId) : true;
 
-    if (wasOn) {
+  // Jeden řešitel: nastavení nahradí případného předchozího (člena i ducha).
+  // ref: "u:<userId>" (člen) | "c:<contactId>" (duch) | null (nikdo).
+  async function setSingleAssignee(ref: string | null) {
+    const memberId = ref && isMemberRef(ref) ? personRefId(ref) : null;
+    const ghostId = ref && !isMemberRef(ref) ? personRefId(ref) : null;
+
+    // optimisticky přepni na jednoho (ostatní zmizí)
+    setAssignees(memberId ? new Set([memberId]) : new Set());
+    setGhostAssignees(ghostId ? new Set([ghostId]) : new Set());
+
+    // smaž veškeré stávající přiřazení (členy i duchy)
+    await supabase.from("task_assignees").delete().eq("task_id", task.id);
+    await supabase.from("task_contact_assignees").delete().eq("task_id", task.id);
+
+    if (memberId) {
+      // řešitel musí být člen projektu, jinak by úkol kvůli RLS neviděl.
+      // Admin proto nečlena při přiřazení rovnou doplní na projekt.
+      if (task.project_id && isAdmin && !projectMembers.has(memberId)) {
+        const { error: pmError } = await supabase
+          .from("project_members")
+          .upsert(
+            { project_id: task.project_id, user_id: memberId },
+            { onConflict: "project_id,user_id", ignoreDuplicates: true }
+          );
+        if (pmError) {
+          toast("Nepodařilo se přidat uživatele na projekt.", "error");
+          loadAssignees();
+          return;
+        }
+        setProjectMembers((prev) => new Set(prev).add(memberId));
+      }
       const { error } = await supabase
         .from("task_assignees")
-        .delete()
-        .eq("task_id", task.id)
-        .eq("user_id", targetId);
+        .insert({ task_id: task.id, user_id: memberId });
       if (error) {
         toast("Změna řešitele se nezdařila.", "error");
         loadAssignees();
-      }
-      return;
-    }
-
-    // řešitel musí být člen projektu, jinak by úkol vůbec neviděl (RLS).
-    // Admin proto nečlena při přiřazení rovnou doplní na projekt.
-    if (task.project_id && isAdmin && !projectMembers.has(targetId)) {
-      const { error: pmError } = await supabase
-        .from("project_members")
-        .upsert(
-          { project_id: task.project_id, user_id: targetId },
-          { onConflict: "project_id,user_id", ignoreDuplicates: true }
-        );
-      if (pmError) {
-        toast("Nepodařilo se přidat uživatele na projekt.", "error");
-        setAssignees((prev) => {
-          const next = new Set(prev);
-          next.delete(targetId);
-          return next;
-        });
         return;
       }
-      setProjectMembers((prev) => new Set(prev).add(targetId));
+      pingNotifyEmails();
+    } else if (ghostId) {
+      const { error } = await supabase
+        .from("task_contact_assignees")
+        .insert({ task_id: task.id, contact_id: ghostId });
+      if (error) {
+        toast("Změna řešitele se nezdařila.", "error");
+        loadAssignees();
+        return;
+      }
     }
-
-    const { error } = await supabase
-      .from("task_assignees")
-      .insert({ task_id: task.id, user_id: targetId });
-    if (error) {
-      toast("Změna řešitele se nezdařila.", "error");
-      loadAssignees();
-      return;
-    }
-    pingNotifyEmails();
+    loadActivity();
+    notifyTasksChanged(); // úkol se přesouvá v „Moje úkoly" nového řešitele
   }
 
   // ---------------------------------------------------------------- follow-up
@@ -388,30 +399,6 @@ export default function CardModal({
     }
     await loadProjects();
     setProjectId(data.id as string);
-  }
-
-  /** Duch jako řešitel — jen evidence, kartu nevidí a nedostává notifikace. */
-  async function toggleGhost(contactId: string) {
-    const wasOn = ghostAssignees.has(contactId);
-    setGhostAssignees((prev) => {
-      const next = new Set(prev);
-      if (wasOn) next.delete(contactId);
-      else next.add(contactId);
-      return next;
-    });
-    const { error } = wasOn
-      ? await supabase
-          .from("task_contact_assignees")
-          .delete()
-          .eq("task_id", task.id)
-          .eq("contact_id", contactId)
-      : await supabase
-          .from("task_contact_assignees")
-          .insert({ task_id: task.id, contact_id: contactId });
-    if (error) {
-      toast("Změna řešitele se nezdařila.", "error");
-      loadAssignees();
-    }
   }
 
   async function save() {
@@ -729,76 +716,40 @@ export default function CardModal({
           className="input w-full px-3 py-2"
         />
 
-        {/* jednotný vzor: přiřazení = chipy (klik odebere), přidání = kombobox */}
+        {/* jeden řešitel — výběr nahradí předchozího (člen i duch) */}
         <div className="flex flex-wrap items-center gap-1.5">
-          <span className="text-xs text-ink-soft/70">Řešitelé:</span>
-          {assignees.size === 0 && ghostAssignees.size === 0 && (
+          <span className="text-xs text-ink-soft/70">Řešitel:</span>
+          {canEditAssignee ? (
+            <PersonPicker
+              wsId={task.workspace_id}
+              userId={userId}
+              members={assignable.filter((m) => canManage(m.user_id))}
+              contacts={contacts}
+              value={currentAssigneeRef}
+              onChange={setSingleAssignee}
+              onContactCreated={addContact}
+              noneLabel="— nikdo —"
+              placeholder="+ řešitel"
+              ariaLabel="Řešitel"
+            />
+          ) : currentMemberId ? (
+            // cizí přiřazení bez oprávnění jen zobrazit
+            (() => {
+              const m = members.find((x) => x.user_id === currentMemberId);
+              const name = m?.profiles?.full_name || m?.profiles?.email || "?";
+              return (
+                <span
+                  className="inline-flex items-center gap-1.5 rounded-full border border-transparent bg-accent/70 py-0.5 pl-0.5 pr-2 text-xs text-white"
+                  title="Řešitele může změnit admin nebo pověřený kolega"
+                >
+                  <Avatar profile={m?.profiles} colorKey={currentMemberId} size="xs" />
+                  {name}
+                </span>
+              );
+            })()
+          ) : (
             <span className="text-xs text-ink-soft/50">nikdo</span>
           )}
-          {members
-            .filter((m) => assignees.has(m.user_id))
-            .map((m) => {
-              const name = m.profiles?.full_name || m.profiles?.email || "?";
-              // bez oprávnění: cizí přiřazení jen zobrazit
-              if (!canManage(m.user_id)) {
-                return (
-                  <span
-                    key={m.user_id}
-                    className="inline-flex items-center gap-1.5 rounded-full border border-transparent bg-accent/70 py-0.5 pl-0.5 pr-2 text-xs text-white"
-                    title="Přiřazení může změnit admin nebo pověřený kolega"
-                  >
-                    <Avatar profile={m.profiles} colorKey={m.user_id} size="xs" />
-                    {name}
-                  </span>
-                );
-              }
-              return (
-                <button
-                  key={m.user_id}
-                  onClick={() => toggleAssignee(m.user_id)}
-                  title="Kliknutím odebereš"
-                  className="inline-flex items-center gap-1.5 rounded-full border border-transparent bg-accent py-0.5 pl-0.5 pr-2 text-xs text-white transition-colors hover:bg-accent/80"
-                >
-                  <Avatar profile={m.profiles} colorKey={m.user_id} size="xs" />
-                  {name}
-                </button>
-              );
-            })}
-          {/* duší řešitelé — jen evidence, kartu nevidí */}
-          {contacts
-            .filter((c) => ghostAssignees.has(c.id))
-            .map((c) => (
-              <button
-                key={c.id}
-                onClick={() => toggleGhost(c.id)}
-                title="Duch — kartu nevidí, odškrtává za něj zadavatel. Kliknutím odebereš."
-                className="inline-flex items-center gap-1 rounded-full border border-transparent bg-ink-soft/80 px-2 py-0.5 text-xs text-white"
-              >
-                👻 {c.name}
-              </button>
-            ))}
-          <PersonPicker
-            wsId={task.workspace_id}
-            userId={userId}
-            members={assignable.filter((m) => canManage(m.user_id))}
-            contacts={contacts}
-            value={null}
-            onChange={(ref) =>
-              ref &&
-              (isMemberRef(ref)
-                ? toggleAssignee(personRefId(ref))
-                : toggleGhost(personRefId(ref)))
-            }
-            onContactCreated={addContact}
-            excludeRefs={
-              new Set([
-                ...[...assignees].map((id) => `u:${id}`),
-                ...[...ghostAssignees].map((id) => `c:${id}`),
-              ])
-            }
-            placeholder="+ řešitel"
-            ariaLabel="Přidat řešitele"
-          />
         </div>
 
         {/* follow-up: úkol čeká na dodání členem či externím kontaktem;
