@@ -85,4 +85,4 @@ běží **timer** — spustitelný z karty, nebo volně jen na projekt. Admini
 - Vidí member nástěnky všech projektů workspace, nebo jen „svých"? (MVP: všech —
   shoduje se s dosavadní RLS; zúžení případně v2)
 - Mazání neprázdného sloupce: MVP blokuje (karty nejdřív přesunout).
-- Pojmenování produktu — „Kronos" (dříve pracovně „Toggled"); produkce zatím toggled.digitalized.cz.
+- Pojmenování produktu — „Kronos" (dříve pracovně „Toggled"); produkce kronos.digitalized.cz.

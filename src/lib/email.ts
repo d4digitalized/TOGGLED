@@ -2,9 +2,9 @@
 // Env: RESEND_API_KEY, volitelně EMAIL_FROM a NEXT_PUBLIC_APP_URL.
 
 export const APP_URL =
-  process.env.NEXT_PUBLIC_APP_URL ?? "https://toggled.digitalized.cz";
+  process.env.NEXT_PUBLIC_APP_URL ?? "https://kronos.digitalized.cz";
 
-const FROM = process.env.EMAIL_FROM ?? "Kronos <toggled@digitalized.cz>";
+const FROM = process.env.EMAIL_FROM ?? "Kronos <kronos@digitalized.cz>";
 
 export async function sendEmail(
   to: string,

@@ -57,18 +57,18 @@ Koncept a rozhodnutí: [docs/CONCEPT.md](docs/CONCEPT.md).
 
 ## Deploy na Vercel
 
-Produkce: **https://toggled.digitalized.cz**
+Produkce: **https://kronos.digitalized.cz**
 
 1. Naimportuj repo `d4digitalized/KRONOS` do Vercelu a v Settings → Domains
-   přidej `toggled.digitalized.cz` (DNS: CNAME na `cname.vercel-dns.com`).
+   přidej `kronos.digitalized.cz` (DNS: CNAME na `cname.vercel-dns.com`).
 2. Nastav env proměnné z `.env.example`;
-   `NEXT_PUBLIC_SITE_URL=https://toggled.digitalized.cz`.
+   `NEXT_PUBLIC_SITE_URL=https://kronos.digitalized.cz`.
 3. V Supabase → Authentication → URL Configuration nastav Site URL na
-   `https://toggled.digitalized.cz` a do Redirect URLs přidej
-   `https://toggled.digitalized.cz/**` (pro lokální vývoj i
+   `https://kronos.digitalized.cz` a do Redirect URLs přidej
+   `https://kronos.digitalized.cz/**` (pro lokální vývoj i
    `http://localhost:3000/**`).
 4. V Resendu ověř doménu `digitalized.cz`, sender pozvánek pak může být
-   např. `toggled@digitalized.cz`.
+   např. `kronos@digitalized.cz`.
 
 ## Stack
 

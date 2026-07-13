@@ -30,8 +30,8 @@ Spustit po sobě, každou jen jednou (přeskoč ty, které už proběhly):
 | --- | --- |
 | `RESEND_API_KEY` | API klíč z resend.com |
 | `CRON_SECRET` | libovolný silný náhodný řetězec |
-| `EMAIL_FROM` | volitelné, default `Kronos <toggled@digitalized.cz>` |
-| `NEXT_PUBLIC_APP_URL` | volitelné, default `https://toggled.digitalized.cz` |
+| `EMAIL_FROM` | volitelné, default `Kronos <kronos@digitalized.cz>` |
+| `NEXT_PUBLIC_APP_URL` | volitelné, default `https://kronos.digitalized.cz` |
 | `SUPABASE_JWT_SECRET` | Supabase → Settings → API → JWT Settings → JWT Secret. Podpis tokenů pro MCP server. Jen server, NIKDY `NEXT_PUBLIC_`. |
 
 (Stávající `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
@@ -79,7 +79,7 @@ Reply-To. Postup:
    např. `reply.digitalized.cz`, typ *receiving* — Resend vypíše MX
    záznam, přidej ho do DNS.
 2. Resend → **Webhooks → Add webhook**: URL
-   `https://toggled.digitalized.cz/api/inbound`, event `email.received`.
+   `https://kronos.digitalized.cz/api/inbound`, event `email.received`.
    Zkopíruj **signing secret** (`whsec_…`).
 3. Env na hostingu (Production + redeploy):
    - `REPLY_DOMAIN` = `reply.digitalized.cz`
