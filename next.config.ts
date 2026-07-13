@@ -1,6 +1,17 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async redirects() {
+    // Stará doména → kronos.digitalized.cz se zachováním cesty i query.
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "toggled.digitalized.cz" }],
+        destination: "https://kronos.digitalized.cz/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
     // OAuth discovery — well-known cesty na naše metadata route handlery.
     // Kryjeme i variantu s příponou cesty (RFC 8414/9728), kterou klient
