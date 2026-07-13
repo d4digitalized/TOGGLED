@@ -157,7 +157,7 @@ export default function MobileNav({
           >
             <div className="flex items-center gap-2 p-3">
               <span className="font-display text-lg font-bold tracking-tight">
-                Toggled<span className="text-accent">.</span>
+                Kronos<span className="text-accent">.</span>
               </span>
               <button
                 onClick={closeDrawer}

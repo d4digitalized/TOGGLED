@@ -4,7 +4,7 @@ import { requireWsMember } from "@/lib/auth";
 import VykazView from "@/components/VykazView";
 
 export const metadata: Metadata = {
-  title: "Pracovní výkaz — Toggled",
+  title: "Pracovní výkaz — Kronos",
 };
 
 const DAY_RE = /^\d{4}-\d{2}-\d{2}$/;

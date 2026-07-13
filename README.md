@@ -1,4 +1,4 @@
-# Toggled
+# Kronos
 
 Firemní kanban nástěnky s měřením času (Trello × Toggl). Next.js + Supabase + Vercel.
 Koncept a rozhodnutí: [docs/CONCEPT.md](docs/CONCEPT.md).
@@ -59,7 +59,7 @@ Koncept a rozhodnutí: [docs/CONCEPT.md](docs/CONCEPT.md).
 
 Produkce: **https://toggled.digitalized.cz**
 
-1. Naimportuj repo `d4digitalized/TOGGLED` do Vercelu a v Settings → Domains
+1. Naimportuj repo `d4digitalized/KRONOS` do Vercelu a v Settings → Domains
    přidej `toggled.digitalized.cz` (DNS: CNAME na `cname.vercel-dns.com`).
 2. Nastav env proměnné z `.env.example`;
    `NEXT_PUBLIC_SITE_URL=https://toggled.digitalized.cz`.

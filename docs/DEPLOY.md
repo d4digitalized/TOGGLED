@@ -1,4 +1,4 @@
-# Nasazení Toggled — checklist
+# Nasazení Kronos — checklist
 
 Pořadí je důležité: **nejdřív migrace, pak deploy**. Nový kód se dotazuje na
 nové sloupce a tabulky — bez migrací by nástěnky po deployi spadly.
@@ -30,7 +30,7 @@ Spustit po sobě, každou jen jednou (přeskoč ty, které už proběhly):
 | --- | --- |
 | `RESEND_API_KEY` | API klíč z resend.com |
 | `CRON_SECRET` | libovolný silný náhodný řetězec |
-| `EMAIL_FROM` | volitelné, default `Toggled <toggled@digitalized.cz>` |
+| `EMAIL_FROM` | volitelné, default `Kronos <toggled@digitalized.cz>` |
 | `NEXT_PUBLIC_APP_URL` | volitelné, default `https://toggled.digitalized.cz` |
 | `SUPABASE_JWT_SECRET` | Supabase → Settings → API → JWT Settings → JWT Secret. Podpis tokenů pro MCP server. Jen server, NIKDY `NEXT_PUBLIC_`. |
 

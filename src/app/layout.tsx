@@ -20,7 +20,7 @@ const display = Familjen_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Toggled",
+  title: "Kronos",
   description: "Nástěnky a měření času pro firmu",
 };
 

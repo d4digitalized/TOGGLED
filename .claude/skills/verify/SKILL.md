@@ -1,9 +1,9 @@
 ---
 name: verify
-description: Jak ověřit změny v Toggled — build, dev server a limity prostředí (Supabase bez lokální instance, migrace ručně).
+description: Jak ověřit změny v Kronosu — build, dev server a limity prostředí (Supabase bez lokální instance, migrace ručně).
 ---
 
-# Ověřování změn v Toggled
+# Ověřování změn v Kronosu
 
 ## Build a spuštění
 

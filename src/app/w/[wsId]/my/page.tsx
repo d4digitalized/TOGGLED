@@ -31,7 +31,7 @@ export default async function MyTasksPage({
     <MyTasksView
       wsId={wsId}
       userId={user.id}
-      heading={`${heading} v ${ws?.name ?? "Toggled"}`}
+      heading={`${heading} v ${ws?.name ?? "Kronos"}`}
       profile={profile}
     />
   );

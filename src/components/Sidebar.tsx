@@ -15,7 +15,7 @@ import {
 } from "@/components/nav-shared";
 import type { Profile, Workspace } from "@/lib/types";
 
-const COLLAPSED_KEY = "toggled:sidebar-collapsed";
+const COLLAPSED_KEY = "kronos:sidebar-collapsed";
 
 export default function Sidebar({
   wsId,
@@ -79,7 +79,7 @@ export default function Sidebar({
       <div className="flex items-center gap-2 p-3">
         {!collapsed && (
           <span className="font-display text-lg font-bold tracking-tight">
-            Toggled<span className="text-accent">.</span>
+            Kronos<span className="text-accent">.</span>
           </span>
         )}
         <button

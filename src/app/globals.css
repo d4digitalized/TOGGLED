@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Toggled design tokens — petrolejová pro akce, mosaz pro běžící čas.
+/* Kronos design tokens — petrolejová pro akce, mosaz pro běžící čas.
    ink/paper/line = neutrální kostra, vědomě chladná a tichá. */
 :root {
   --ink: #1f2328;

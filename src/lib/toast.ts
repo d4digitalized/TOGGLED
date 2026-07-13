@@ -1,4 +1,4 @@
-export const TOAST_EVENT = "toggled:toast";
+export const TOAST_EVENT = "kronos:toast";
 
 export type ToastKind = "success" | "error";
 

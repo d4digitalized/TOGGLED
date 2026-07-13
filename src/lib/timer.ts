@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { entrySeconds, fmtClock } from "@/lib/format";
 import { toast } from "@/lib/toast";
 
-export const TIMER_CHANGED_EVENT = "toggled:timer-changed";
+export const TIMER_CHANGED_EVENT = "kronos:timer-changed";
 
 function notifyTimerChanged() {
   window.dispatchEvent(new Event(TIMER_CHANGED_EVENT));

@@ -1,4 +1,4 @@
-export const CONFIRM_EVENT = "toggled:confirm";
+export const CONFIRM_EVENT = "kronos:confirm";
 
 export type ConfirmOptions = {
   /** Nadpis dialogu. Výchozí „Opravdu?". */

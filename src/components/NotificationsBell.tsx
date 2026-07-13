@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 /** Obrazovka notifikací po označení přečtených řekne zvonečku, ať se obnoví. */
-export const NOTIFICATIONS_CHANGED_EVENT = "toggled:notifications-changed";
+export const NOTIFICATIONS_CHANGED_EVENT = "kronos:notifications-changed";
 
 export default function NotificationsBell({
   wsId,

@@ -9,7 +9,8 @@
       "Bash(nslookup -type=TXT send.digitalized.cz 8.8.8.8)",
       "Bash(node _fix-email.mjs)",
       "PowerShell($env:SUPABASE_SERVICE_ROLE_KEY = \\(Get-Content .env.local | Where-Object { $_ -match '^SUPABASE_SERVICE_ROLE_KEY=' }\\) -replace '^SUPABASE_SERVICE_ROLE_KEY=',''; node \"C:\\\\Users\\\\Jan\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\d--dev-060-DIGITALIZED-Toggled\\\\caa29f38-8737-42af-8168-cbbcdad04d13\\\\scratchpad\\\\create-user.mjs\")",
-      "Bash(node _list-ws.mjs)"
+      "Bash(node _list-ws.mjs)",
+      "PowerShell(Get-ChildItem -Name | Where-Object { $_ -ne 'node_modules' -and $_ -ne '.git' }; Write-Output '---src---'; Get-ChildItem -Recurse -Directory src | Select-Object -ExpandProperty FullName)"
     ]
   }
 }

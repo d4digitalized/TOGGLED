@@ -51,7 +51,7 @@ function WelcomeForm() {
       className="w-full max-w-sm space-y-4 panel p-8 shadow-sm"
     >
       <h1 className="font-display text-2xl font-bold">
-        {isReset ? "Nové heslo" : "Vítej v Toggled"}
+        {isReset ? "Nové heslo" : "Vítej v Kronosu"}
       </h1>
       <p className="text-sm text-ink-soft">
         {isReset

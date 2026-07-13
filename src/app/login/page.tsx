@@ -54,7 +54,7 @@ function LoginForm() {
     return (
       <div className="w-full max-w-sm space-y-4 panel p-8 shadow-sm">
         <h1 className="font-display text-2xl font-bold">
-          Toggled<span className="text-accent">.</span>
+          Kronos<span className="text-accent">.</span>
         </h1>
         <p className="text-sm">
           Pokud účet pro <span className="font-medium">{email}</span> existuje,
@@ -75,7 +75,7 @@ function LoginForm() {
       className="w-full max-w-sm space-y-4 panel p-8 shadow-sm"
     >
       <h1 className="font-display text-2xl font-bold">
-        Toggled<span className="text-accent">.</span>
+        Kronos<span className="text-accent">.</span>
       </h1>
       <p className="text-sm text-ink-soft">
         {isReset

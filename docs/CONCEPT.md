@@ -1,4 +1,4 @@
-# Toggled — koncept
+# Kronos — koncept
 
 *Brainstorming 2026-06-12; 4. kolo: pivot na kanban nástěnky (Trello × Toggl).*
 
@@ -85,4 +85,4 @@ běží **timer** — spustitelný z karty, nebo volně jen na projekt. Admini
 - Vidí member nástěnky všech projektů workspace, nebo jen „svých"? (MVP: všech —
   shoduje se s dosavadní RLS; zúžení případně v2)
 - Mazání neprázdného sloupce: MVP blokuje (karty nejdřív přesunout).
-- Pojmenování produktu — pracovně „Toggled"; produkce toggled.digitalized.cz.
+- Pojmenování produktu — „Kronos" (dříve pracovně „Toggled"); produkce zatím toggled.digitalized.cz.

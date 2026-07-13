@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { createUserClient } from "./auth";
 
-// Nástroje MCP serveru Toggled. Každý běží pod JWT přihlášeného uživatele
+// Nástroje MCP serveru Kronos. Každý běží pod JWT přihlášeného uživatele
 // (createUserClient), takže veškerá autorizace, izolace workspace i role
 // zůstává na stávající RLS — tady žádná kontrola oprávnění navíc není.
 

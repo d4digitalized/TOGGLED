@@ -24,7 +24,7 @@ function compose(n: QueueRow): { subject: string; html: string } {
     : `${APP_URL}/w/${n.workspace_id}`;
   const title = escapeHtml(n.task_title);
   const actor = escapeHtml(n.actor_name || "Někdo");
-  const button = `<p style="margin:14px 0 0;font-size:14px;"><a href="${link}" style="color:#0e7569;font-weight:600;text-decoration:none;">Otevřít v Toggled&nbsp;→</a></p>`;
+  const button = `<p style="margin:14px 0 0;font-size:14px;"><a href="${link}" style="color:#0e7569;font-weight:600;text-decoration:none;">Otevřít v Kronosu&nbsp;→</a></p>`;
   const canReply = n.task_id ? replyAddress(n.task_id, n.user_id) : null;
   const replyHint = canReply
     ? `<p style="margin:14px 0 0;border-top:1px solid #e2e5e8;padding-top:10px;font-size:12px;color:#5c636b;">Odpovědí na tento e-mail přidáš komentář ke kartě.</p>`

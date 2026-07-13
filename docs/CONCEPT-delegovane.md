@@ -1,4 +1,4 @@
-# Toggled — Delegované úkoly (follow-up / „čekám na")
+# Kronos — Delegované úkoly (follow-up / „čekám na")
 
 *Brainstorming 2026-07-10; 2. kolo téhož dne: princip dvou vazeb, úkoly bez
 projektu, skryté úkoly, odemykání per člen.*
