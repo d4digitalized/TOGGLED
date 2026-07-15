@@ -204,15 +204,19 @@ export default function MyTasksView({
                   onToggleDone={toggleDone}
                   meta={
                     rowAssignees.length > 0 && (
-                      <span className="flex -space-x-1.5">
-                        {rowAssignees.slice(0, 4).map((m) => (
-                          <Avatar
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        {rowAssignees.map((m) => (
+                          <span
                             key={m.user_id}
-                            profile={m.profiles}
-                            colorKey={m.user_id}
-                            size="sm"
-                            className="border border-surface"
-                          />
+                            className="inline-flex items-center gap-1.5 rounded-full bg-black/5 py-0.5 pl-0.5 pr-2 text-xs text-ink-soft"
+                          >
+                            <Avatar
+                              profile={m.profiles}
+                              colorKey={m.user_id}
+                              size="xs"
+                            />
+                            {m.profiles?.full_name || m.profiles?.email}
+                          </span>
                         ))}
                       </span>
                     )
