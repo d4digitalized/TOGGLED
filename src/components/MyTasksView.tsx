@@ -9,7 +9,7 @@ import { cacheGet, cacheSet } from "@/lib/viewCache";
 import { TASKS_CHANGED_EVENT } from "@/lib/tasksChanged";
 import TaskRow, { TaskGroup, dueBuckets } from "@/components/TaskRow";
 import Avatar, { type AvatarLike } from "@/components/Avatar";
-import type { Membership, Task } from "@/lib/types";
+import type { Contact, Membership, Task } from "@/lib/types";
 
 // Modal se načte až při otevření karty — nezatěžuje základní bundle routy.
 const CardModal = dynamic(() => import("@/components/CardModal"), { ssr: false });
@@ -32,6 +32,7 @@ export default function MyTasksView({
     members: Membership[];
     leadTasks: Task[];
     leadAssignees: Record<string, string[]>;
+    leadGhosts: Record<string, Contact[]>;
   }>(cacheKey);
   const [tasks, setTasks] = useState<Task[]>(cached?.tasks ?? []);
   const [members, setMembers] = useState<Membership[]>(cached?.members ?? []);
@@ -39,6 +40,10 @@ export default function MyTasksView({
   const [leadTasks, setLeadTasks] = useState<Task[]>(cached?.leadTasks ?? []);
   const [leadAssignees, setLeadAssignees] = useState<Record<string, string[]>>(
     cached?.leadAssignees ?? {}
+  );
+  // externí řešitelé (duchové) vedených úkolů
+  const [leadGhosts, setLeadGhosts] = useState<Record<string, Contact[]>>(
+    cached?.leadGhosts ?? {}
   );
   const [mode, setMode] = useState<"mine" | "lead">("mine");
   const [loading, setLoading] = useState(!cached);
@@ -75,7 +80,7 @@ export default function MyTasksView({
       supabase
         .from("tasks")
         .select(
-          "*, projects(name, position), board_columns(name), task_assignees(user_id)"
+          "*, projects(name, position), board_columns(name), task_assignees(user_id), task_contact_assignees(contacts(*))"
         )
         .eq("workspace_id", wsId)
         .eq("lead_id", userId)
@@ -89,21 +94,28 @@ export default function MyTasksView({
       .sort(byDue);
     const leadRows = ((leadRes.data ?? []) as unknown as (Task & {
       task_assignees?: { user_id: string }[];
+      task_contact_assignees?: { contacts: Contact | null }[];
     })[]).sort(byDue);
     const leadByTask: Record<string, string[]> = {};
+    const ghostsByTask: Record<string, Contact[]> = {};
     for (const t of leadRows) {
       leadByTask[t.id] = (t.task_assignees ?? []).map((a) => a.user_id);
+      ghostsByTask[t.id] = (t.task_contact_assignees ?? [])
+        .map((g) => g.contacts)
+        .filter((c): c is Contact => !!c);
     }
     const mem = (memRes.data as unknown as Membership[]) ?? [];
     setTasks(mine);
     setMembers(mem);
     setLeadTasks(leadRows);
     setLeadAssignees(leadByTask);
+    setLeadGhosts(ghostsByTask);
     cacheSet(cacheKey, {
       tasks: mine,
       members: mem,
       leadTasks: leadRows,
       leadAssignees: leadByTask,
+      leadGhosts: ghostsByTask,
     });
     setLoading(false);
   }, [supabase, wsId, userId, cacheKey]);
@@ -189,13 +201,14 @@ export default function MyTasksView({
             accent={group.accent}
           >
             {group.tasks.map((task) => {
-              // u vedených úkolů ukaž, kdo na nich reálně dělá
+              // u vedených úkolů ukaž, kdo na nich reálně dělá — členy i duchy
               const rowAssignees =
                 mode === "lead"
                   ? (leadAssignees[task.id] ?? [])
                       .map((id) => members.find((m) => m.user_id === id))
                       .filter((m): m is Membership => !!m)
                   : [];
+              const rowGhosts = mode === "lead" ? (leadGhosts[task.id] ?? []) : [];
               return (
                 <TaskRow
                   key={task.id}
@@ -203,7 +216,7 @@ export default function MyTasksView({
                   onOpen={setOpenTask}
                   onToggleDone={toggleDone}
                   meta={
-                    rowAssignees.length > 0 && (
+                    (rowAssignees.length > 0 || rowGhosts.length > 0) && (
                       <span className="flex flex-wrap items-center gap-1.5">
                         {rowAssignees.map((m) => (
                           <span
@@ -216,6 +229,24 @@ export default function MyTasksView({
                               size="xs"
                             />
                             {m.profiles?.full_name || m.profiles?.email}
+                          </span>
+                        ))}
+                        {rowGhosts.map((c) => (
+                          <span
+                            key={c.id}
+                            title={`${c.name} (externí)`}
+                            className="inline-flex items-center gap-1.5 rounded-full bg-black/5 py-0.5 pl-0.5 pr-2 text-xs text-ink-soft"
+                          >
+                            <Avatar
+                              profile={{
+                                full_name: c.name,
+                                avatar_initials: c.avatar_initials || null,
+                                avatar_color: c.avatar_color || "#9ca3af",
+                              }}
+                              colorKey={c.id}
+                              size="xs"
+                            />
+                            {c.name}
                           </span>
                         ))}
                       </span>
