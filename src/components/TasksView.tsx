@@ -11,7 +11,7 @@ import { TASKS_CHANGED_EVENT } from "@/lib/tasksChanged";
 import { ProjectDot } from "@/components/ProjectPicker";
 import Avatar from "@/components/Avatar";
 import TaskRow, { TaskGroup } from "@/components/TaskRow";
-import type { Membership, Project, Task } from "@/lib/types";
+import type { Contact, Membership, Project, Task } from "@/lib/types";
 
 // Modal karty se dogeneruje až při otevření (mimo základní bundle routy).
 const CardModal = dynamic(() => import("@/components/CardModal"), { ssr: false });
@@ -34,12 +34,18 @@ export default function TasksView({
     projects: Project[];
     members: Membership[];
     assignees: Record<string, string[]>;
+    contacts: Contact[];
+    ghostAssignees: Record<string, string[]>;
   }>(cacheKey);
   const [tasks, setTasks] = useState<Task[]>(cached?.tasks ?? []);
   const [projects, setProjects] = useState<Project[]>(cached?.projects ?? []);
   const [members, setMembers] = useState<Membership[]>(cached?.members ?? []);
   const [assignees, setAssignees] = useState<Record<string, string[]>>(
     cached?.assignees ?? {}
+  );
+  const [contacts, setContacts] = useState<Contact[]>(cached?.contacts ?? []);
+  const [ghostAssignees, setGhostAssignees] = useState<Record<string, string[]>>(
+    cached?.ghostAssignees ?? {}
   );
   const [loading, setLoading] = useState(!cached);
   const [openTask, setOpenTask] = useState<Task | null>(null);
@@ -50,10 +56,13 @@ export default function TasksView({
   const [fProject, setFProject] = useState("");
   const [fPriority, setFPriority] = useState(0);
   const [fAssignee, setFAssignee] = useState("");
+  const [fGhost, setFGhost] = useState("");
+  const [ghostsOpen, setGhostsOpen] = useState(false);
   const [fStatus, setFStatus] = useState<Status>("active");
 
   const load = useCallback(async () => {
-    const [taskRes, projRes, memRes, taRes, grantRes] = await Promise.all([
+    const [taskRes, projRes, memRes, taRes, grantRes, contactRes, tcaRes] =
+      await Promise.all([
       supabase
         .from("tasks")
         .select("*, projects(name, position), board_columns(name)")
@@ -81,6 +90,11 @@ export default function TasksView({
         .select("target_id")
         .eq("workspace_id", wsId)
         .eq("user_id", userId),
+      supabase.from("contacts").select("*").eq("workspace_id", wsId).order("name"),
+      supabase
+        .from("task_contact_assignees")
+        .select("task_id, contact_id, tasks!inner(workspace_id)")
+        .eq("tasks.workspace_id", wsId),
     ]);
     const nextTasks = (taskRes.data as Task[]) ?? [];
     const nextProjects = (projRes.data as Project[]) ?? [];
@@ -89,16 +103,28 @@ export default function TasksView({
     for (const row of taRes.data ?? []) {
       byTask[row.task_id] = [...(byTask[row.task_id] ?? []), row.user_id as string];
     }
+    const nextContacts = (contactRes.data as Contact[]) ?? [];
+    const ghostByTask: Record<string, string[]> = {};
+    for (const row of tcaRes.data ?? []) {
+      ghostByTask[row.task_id] = [
+        ...(ghostByTask[row.task_id] ?? []),
+        row.contact_id as string,
+      ];
+    }
     setTasks(nextTasks);
     setProjects(nextProjects);
     setMembers(nextMembers);
     setAssignees(byTask);
+    setContacts(nextContacts);
+    setGhostAssignees(ghostByTask);
     setGrants(new Set((grantRes.data ?? []).map((r) => r.target_id as string)));
     cacheSet(cacheKey, {
       tasks: nextTasks,
       projects: nextProjects,
       members: nextMembers,
       assignees: byTask,
+      contacts: nextContacts,
+      ghostAssignees: ghostByTask,
     });
     setLoading(false);
   }, [supabase, wsId, cacheKey]);
@@ -134,17 +160,24 @@ export default function TasksView({
   const switcherMembers = [...teamMembers].sort((a, b) =>
     memberName(a).localeCompare(memberName(b), "cs")
   );
+  // duchové, kteří mají aspoň jeden (mně viditelný) úkol — pro rozklikávací lištu
+  const ghostIds = new Set(Object.values(ghostAssignees).flat());
+  const ghosts = contacts.filter((c) => ghostIds.has(c.id));
   const visible = tasks
-    // Inbox je soukromý: úkol bez projektu a bez řešitele patří jen svému
-    // autorovi — ani admin ho tady nevidí (má ho autor v Inboxu).
+    // Inbox je soukromý: úkol bez projektu a bez řešitele (člena ani ducha)
+    // patří jen svému autorovi — ani admin ho tady nevidí (má ho v Inboxu).
     .filter(
       (t) =>
         t.project_id !== null ||
         t.created_by === userId ||
-        (assignees[t.id] ?? []).length > 0
+        (assignees[t.id] ?? []).length > 0 ||
+        (ghostAssignees[t.id] ?? []).length > 0
     )
+    // vybraný duch ruší týmové omezení — ukazuju všechno, co s ním vidím
     .filter((t) =>
-      isAdmin ? true : (assignees[t.id] ?? []).some((id) => team.has(id))
+      isAdmin || fGhost
+        ? true
+        : (assignees[t.id] ?? []).some((id) => team.has(id))
     )
     .filter((t) =>
       fStatus === "all" ? true : fStatus === "done" ? !!t.completed_at : !t.completed_at
@@ -156,7 +189,8 @@ export default function TasksView({
           t.description.toLowerCase().includes(q)) &&
         (!fProject || t.project_id === fProject) &&
         (fPriority === 0 || (t.priority ?? 4) === fPriority) &&
-        (!fAssignee || (assignees[t.id] ?? []).includes(fAssignee))
+        (!fAssignee || (assignees[t.id] ?? []).includes(fAssignee)) &&
+        (!fGhost || (ghostAssignees[t.id] ?? []).includes(fGhost))
     )
     .sort(
       (a, b) =>
@@ -240,10 +274,13 @@ export default function TasksView({
       {switcherMembers.length > 1 && (
         <div className="flex flex-wrap items-center gap-1.5">
           <button
-            onClick={() => setFAssignee("")}
-            aria-pressed={!fAssignee}
+            onClick={() => {
+              setFAssignee("");
+              setFGhost("");
+            }}
+            aria-pressed={!fAssignee && !fGhost}
             className={`rounded-full border px-2.5 py-1 text-xs transition-colors ${
-              !fAssignee
+              !fAssignee && !fGhost
                 ? "border-transparent bg-accent text-white"
                 : "border-line text-ink-soft hover:border-ink-soft/40"
             }`}
@@ -256,7 +293,10 @@ export default function TasksView({
             return (
               <button
                 key={m.user_id}
-                onClick={() => setFAssignee(on ? "" : m.user_id)}
+                onClick={() => {
+                  setFAssignee(on ? "" : m.user_id);
+                  setFGhost("");
+                }}
                 aria-pressed={on}
                 aria-label={`Na čem dělá ${name}`}
                 title={name}
@@ -271,6 +311,52 @@ export default function TasksView({
               </button>
             );
           })}
+        </div>
+      )}
+
+      {/* rozklikávací lišta duchů — externisté s aspoň jedním úkolem */}
+      {ghosts.length > 0 && (
+        <div className="space-y-1.5">
+          <button
+            onClick={() => setGhostsOpen((o) => !o)}
+            aria-expanded={ghostsOpen}
+            className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs transition-colors ${
+              fGhost
+                ? "border-accent bg-accent-soft font-medium text-accent"
+                : "border-line text-ink-soft hover:border-ink-soft/40"
+            }`}
+          >
+            👻{" "}
+            {fGhost
+              ? (contacts.find((c) => c.id === fGhost)?.name ?? "duch")
+              : `Duchové (${ghosts.length})`}
+            <span aria-hidden>{ghostsOpen ? "▴" : "▾"}</span>
+          </button>
+          {ghostsOpen && (
+            <div className="flex flex-wrap items-center gap-1.5">
+              {ghosts.map((c) => {
+                const on = fGhost === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setFGhost(on ? "" : c.id);
+                      setFAssignee("");
+                    }}
+                    aria-pressed={on}
+                    aria-label={`Na čem dělá ${c.name}`}
+                    className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs transition-colors ${
+                      on
+                        ? "border-accent bg-accent-soft font-medium text-accent"
+                        : "border-line text-ink-soft hover:border-ink-soft/40"
+                    }`}
+                  >
+                    👻 {c.name}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
       )}
 
