@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/lib/toast";
 import { confirmDialog } from "@/lib/confirm";
+import Avatar, { AVATAR_COLORS, avatarInitials } from "@/components/Avatar";
 import type { Contact } from "@/lib/types";
 
 /** Externí kontakty workspace — lidé bez účtu, na které lze delegovat úkoly
@@ -18,6 +19,8 @@ export default function ContactsSection({ wsId }: { wsId: string }) {
   const [eName, setEName] = useState("");
   const [eEmail, setEEmail] = useState("");
   const [eNote, setENote] = useState("");
+  const [eInitials, setEInitials] = useState("");
+  const [eColor, setEColor] = useState("");
 
   const load = useCallback(async () => {
     const { data } = await supabase
@@ -53,6 +56,8 @@ export default function ContactsSection({ wsId }: { wsId: string }) {
     setEName(c.name);
     setEEmail(c.email);
     setENote(c.note);
+    setEInitials(c.avatar_initials ?? "");
+    setEColor(c.avatar_color ?? "");
   }
 
   async function saveEdit(id: string) {
@@ -63,7 +68,13 @@ export default function ContactsSection({ wsId }: { wsId: string }) {
     }
     const { error } = await supabase
       .from("contacts")
-      .update({ name: n, email: eEmail.trim(), note: eNote.trim() })
+      .update({
+        name: n,
+        email: eEmail.trim(),
+        note: eNote.trim(),
+        avatar_initials: eInitials.trim().toUpperCase().slice(0, 3),
+        avatar_color: eColor,
+      })
       .eq("id", id);
     if (error) {
       toast("Uložení kontaktu se nezdařilo.", "error");
@@ -131,6 +142,15 @@ export default function ContactsSection({ wsId }: { wsId: string }) {
           {contacts.map((c) => (
             <div key={c.id}>
               <div className="flex items-center gap-3 px-3 py-2">
+                <Avatar
+                  profile={{
+                    full_name: c.name,
+                    avatar_initials: c.avatar_initials || null,
+                    avatar_color: c.avatar_color || "#9ca3af",
+                  }}
+                  colorKey={c.id}
+                  size="md"
+                />
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm">{c.name}</p>
                   <p className="truncate text-xs text-ink-soft/70">
@@ -156,43 +176,98 @@ export default function ContactsSection({ wsId }: { wsId: string }) {
               </div>
 
               {editId === c.id && (
-                <div className="flex flex-wrap items-center gap-2 border-t border-line/50 bg-black/[.015] px-3 py-3">
-                  <input
-                    type="text"
-                    value={eName}
-                    onChange={(e) => setEName(e.target.value)}
-                    placeholder="Jméno"
-                    aria-label="Jméno kontaktu"
-                    className="min-w-36 flex-1 input"
-                  />
-                  <input
-                    type="email"
-                    value={eEmail}
-                    onChange={(e) => setEEmail(e.target.value)}
-                    placeholder="E-mail"
-                    aria-label="E-mail kontaktu"
-                    className="min-w-36 flex-1 input"
-                  />
-                  <input
-                    type="text"
-                    value={eNote}
-                    onChange={(e) => setENote(e.target.value)}
-                    placeholder="Poznámka (firma, role…)"
-                    aria-label="Poznámka"
-                    className="min-w-36 flex-1 input"
-                  />
-                  <button
-                    onClick={() => setEditId(null)}
-                    className="btn-ghost px-2 py-1 text-xs"
-                  >
-                    Zrušit
-                  </button>
-                  <button
-                    onClick={() => saveEdit(c.id)}
-                    className="btn-primary px-3 py-1 text-xs"
-                  >
-                    Uložit
-                  </button>
+                <div className="space-y-2 border-t border-line/50 bg-black/[.015] px-3 py-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Avatar
+                      profile={{
+                        full_name: eName,
+                        avatar_initials: eInitials,
+                        avatar_color: eColor || "#9ca3af",
+                      }}
+                      colorKey={c.id}
+                      size="lg"
+                    />
+                    <input
+                      type="text"
+                      value={eName}
+                      onChange={(e) => setEName(e.target.value)}
+                      placeholder="Jméno"
+                      aria-label="Jméno kontaktu"
+                      className="min-w-36 flex-1 input"
+                    />
+                    <input
+                      type="text"
+                      value={eInitials}
+                      onChange={(e) => setEInitials(e.target.value)}
+                      maxLength={3}
+                      placeholder={avatarInitials({ full_name: eName })}
+                      aria-label="Iniciály (max 3 znaky)"
+                      title="Iniciály — prázdné se odvodí ze jména"
+                      className="input w-16 text-center uppercase"
+                    />
+                    <input
+                      type="email"
+                      value={eEmail}
+                      onChange={(e) => setEEmail(e.target.value)}
+                      placeholder="E-mail"
+                      aria-label="E-mail kontaktu"
+                      className="min-w-36 flex-1 input"
+                    />
+                    <input
+                      type="text"
+                      value={eNote}
+                      onChange={(e) => setENote(e.target.value)}
+                      placeholder="Poznámka (firma, role…)"
+                      aria-label="Poznámka"
+                      className="min-w-36 flex-1 input"
+                    />
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="text-xs text-ink-soft/70">Barva:</span>
+                    {AVATAR_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => setEColor(color)}
+                        aria-label={`Barva ${color}`}
+                        aria-pressed={eColor === color}
+                        style={{ background: color }}
+                        className={`h-6 w-6 rounded-full transition-transform ${
+                          eColor === color
+                            ? "scale-110 ring-2 ring-ink ring-offset-1"
+                            : "hover:scale-105"
+                        }`}
+                      />
+                    ))}
+                    <input
+                      type="color"
+                      value={eColor || "#9ca3af"}
+                      onChange={(e) => setEColor(e.target.value)}
+                      aria-label="Vlastní barva"
+                      title="Vlastní barva"
+                      className="h-6 w-8 cursor-pointer rounded border border-line bg-transparent"
+                    />
+                    {eColor && (
+                      <button
+                        onClick={() => setEColor("")}
+                        className="btn-ghost px-2 py-0.5 text-xs"
+                      >
+                        Automatická (šedá)
+                      </button>
+                    )}
+                    <span className="flex-1" />
+                    <button
+                      onClick={() => setEditId(null)}
+                      className="btn-ghost px-2 py-1 text-xs"
+                    >
+                      Zrušit
+                    </button>
+                    <button
+                      onClick={() => saveEdit(c.id)}
+                      className="btn-primary px-3 py-1 text-xs"
+                    >
+                      Uložit
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

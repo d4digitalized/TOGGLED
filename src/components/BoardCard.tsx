@@ -27,7 +27,12 @@ function BoardCard({
   /** jméno člověka, na kterého karta čeká (follow-up) */
   waitingOn?: string;
   /** duší řešitelé — kontakty bez účtu */
-  ghostAssignees?: { id: string; name: string }[];
+  ghostAssignees?: {
+    id: string;
+    name: string;
+    avatar_initials?: string;
+    avatar_color?: string;
+  }[];
   onOpen: (task: Task) => void;
   onStart: (task: Task) => void;
 }) {
@@ -135,15 +140,29 @@ function BoardCard({
                   className="border border-surface"
                 />
               ))}
-              {ghostAssignees.slice(0, Math.max(0, 3 - assignees.length)).map((g) => (
-                <span
-                  key={g.id}
-                  title={`${g.name} (duch)`}
-                  className="flex h-5 w-5 items-center justify-center rounded-full border border-surface bg-black/10 text-[10px]"
-                >
-                  👻
-                </span>
-              ))}
+              {ghostAssignees.slice(0, Math.max(0, 3 - assignees.length)).map((g) =>
+                g.avatar_initials || g.avatar_color ? (
+                  <Avatar
+                    key={g.id}
+                    profile={{
+                      full_name: g.name,
+                      avatar_initials: g.avatar_initials || null,
+                      avatar_color: g.avatar_color || "#9ca3af",
+                    }}
+                    colorKey={g.id}
+                    size="sm"
+                    className="border border-surface"
+                  />
+                ) : (
+                  <span
+                    key={g.id}
+                    title={`${g.name} (duch)`}
+                    className="flex h-5 w-5 items-center justify-center rounded-full border border-surface bg-black/10 text-[10px]"
+                  >
+                    👻
+                  </span>
+                )
+              )}
               {assignees.length + ghostAssignees.length > 3 && (
                 <span className="flex h-5 w-5 items-center justify-center rounded-full border border-surface bg-black/10 text-[9px] font-medium text-ink-soft">
                   +{assignees.length + ghostAssignees.length - 3}

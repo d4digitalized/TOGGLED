@@ -100,6 +100,9 @@ export type Contact = {
   name: string;
   email: string;
   note: string;
+  /** vlastní iniciály/barva avataru; prázdné = šedé kolečko dle jména */
+  avatar_initials?: string;
+  avatar_color?: string;
   created_by: string | null;
   created_at: string;
 };

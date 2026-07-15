@@ -84,7 +84,7 @@ export default function BoardView({
   const [cardAssignees, setCardAssignees] = useState<Record<string, string[]>>({});
   const [cardWaiting, setCardWaiting] = useState<Record<string, string>>({});
   const [cardGhosts, setCardGhosts] = useState<
-    Record<string, { id: string; name: string }[]>
+    Record<string, { id: string; name: string; avatar_initials?: string; avatar_color?: string }[]>
   >({});
   const [subCounts, setSubCounts] = useState<Record<string, { done: number; total: number }>>({});
   const [wsLabels, setWsLabels] = useState<Label[]>([]);
@@ -140,7 +140,9 @@ export default function BoardView({
         .eq("tasks.project_id", projectId),
       supabase
         .from("task_contact_assignees")
-        .select("task_id, contacts(id, name), tasks!inner(project_id)")
+        .select(
+          "task_id, contacts(id, name, avatar_initials, avatar_color), tasks!inner(project_id)"
+        )
         .eq("tasks.project_id", projectId),
       supabase
         .from("assign_grants")
@@ -194,9 +196,17 @@ export default function BoardView({
     setCardWaiting(waitingByTask);
 
     // duší řešitelé — jen evidence na kartě (avatar se jménem kontaktu)
-    const ghostsByTask: Record<string, { id: string; name: string }[]> = {};
+    const ghostsByTask: Record<
+      string,
+      { id: string; name: string; avatar_initials?: string; avatar_color?: string }[]
+    > = {};
     for (const row of gaRes.data ?? []) {
-      const contact = row.contacts as unknown as { id: string; name: string } | null;
+      const contact = row.contacts as unknown as {
+        id: string;
+        name: string;
+        avatar_initials?: string;
+        avatar_color?: string;
+      } | null;
       if (!contact) continue;
       ghostsByTask[row.task_id as string] = [
         ...(ghostsByTask[row.task_id as string] ?? []),

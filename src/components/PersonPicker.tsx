@@ -6,13 +6,18 @@ import Picker from "@/components/Picker";
 import Avatar from "@/components/Avatar";
 import type { Contact, Membership } from "@/lib/types";
 
-/** Kolečko s iniciálami pro ducha (kontakt bez účtu) — šedé, ať se odliší
-    od barevných avatarů skutečných členů. */
-function GhostAvatar({ name, id }: { name: string; id: string }) {
+/** Kolečko s iniciálami pro ducha (kontakt bez účtu). Bez vlastního
+    nastavení šedé, ať se odliší od barevných avatarů skutečných členů;
+    vlastní iniciály a barvu jde kontaktu nastavit v Členech. */
+function GhostAvatar({ contact }: { contact: Contact }) {
   return (
     <Avatar
-      profile={{ full_name: name, avatar_color: "#9ca3af" }}
-      colorKey={id}
+      profile={{
+        full_name: contact.name,
+        avatar_initials: contact.avatar_initials || null,
+        avatar_color: contact.avatar_color || "#9ca3af",
+      }}
+      colorKey={contact.id}
       size="sm"
     />
   );
@@ -114,7 +119,7 @@ export default function PersonPicker({
           .map((c) => ({
             id: `c:${c.id}` as string | null,
             label: c.name,
-            avatar: <GhostAvatar name={c.name} id={c.id} />,
+            avatar: <GhostAvatar contact={c} />,
             // duchové se v nabídce ukážou až po zadání prvního znaku
             deferred: true,
           }))

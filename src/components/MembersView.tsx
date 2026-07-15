@@ -11,23 +11,11 @@ import {
   type AppUser,
 } from "@/app/actions/members";
 import Picker from "@/components/Picker";
-import Avatar, { avatarInitials } from "@/components/Avatar";
+import Avatar, { AVATAR_COLORS, avatarInitials } from "@/components/Avatar";
 import ContactsSection from "@/components/ContactsSection";
 import { toast } from "@/lib/toast";
 import { confirmDialog } from "@/lib/confirm";
 import type { Membership, Role } from "@/lib/types";
-
-/* stejná paleta jako tečky projektů — nabídka pro barvu avataru */
-const AVATAR_COLORS = [
-  "#0e7569",
-  "#b45309",
-  "#0369a1",
-  "#be185d",
-  "#6d28d9",
-  "#4d7c0f",
-  "#b91c1c",
-  "#475569",
-];
 
 const USER_ICON =
   "M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2M9.5 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z";
