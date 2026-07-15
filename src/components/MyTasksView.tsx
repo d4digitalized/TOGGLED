@@ -27,14 +27,30 @@ export default function MyTasksView({
 }) {
   const supabase = createClient();
   const cacheKey = `mytasks:${wsId}:${userId}`;
-  const cached = cacheGet<{ tasks: Task[]; members: Membership[] }>(cacheKey);
+  const cached = cacheGet<{
+    tasks: Task[];
+    members: Membership[];
+    leadTasks: Task[];
+    leadAssignees: Record<string, string[]>;
+  }>(cacheKey);
   const [tasks, setTasks] = useState<Task[]>(cached?.tasks ?? []);
   const [members, setMembers] = useState<Membership[]>(cached?.members ?? []);
+  // úkoly, kde jsem vedoucí — druhá záložka přepínače
+  const [leadTasks, setLeadTasks] = useState<Task[]>(cached?.leadTasks ?? []);
+  const [leadAssignees, setLeadAssignees] = useState<Record<string, string[]>>(
+    cached?.leadAssignees ?? {}
+  );
+  const [mode, setMode] = useState<"mine" | "lead">("mine");
   const [loading, setLoading] = useState(!cached);
   const [openTask, setOpenTask] = useState<Task | null>(null);
 
+  const byDue = (a: Task, b: Task) =>
+    (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999") ||
+    (a.priority ?? 4) - (b.priority ?? 4) ||
+    a.title.localeCompare(b.title, "cs");
+
   const load = useCallback(async () => {
-    const [mineRes, memRes, fuRes] = await Promise.all([
+    const [mineRes, memRes, fuRes, leadRes] = await Promise.all([
       supabase
         .from("task_assignees")
         .select(
@@ -56,21 +72,39 @@ export default function MyTasksView({
         .select("task_id")
         .eq("created_by", userId)
         .eq("workspace_id", wsId),
+      supabase
+        .from("tasks")
+        .select(
+          "*, projects(name, position), board_columns(name), task_assignees(user_id)"
+        )
+        .eq("workspace_id", wsId)
+        .eq("lead_id", userId)
+        .is("completed_at", null)
+        .is("parent_id", null),
     ]);
     const waiting = new Set((fuRes.data ?? []).map((r) => r.task_id as string));
     const mine = ((mineRes.data ?? []) as unknown as { tasks: Task }[])
       .map((r) => r.tasks)
       .filter((t) => !waiting.has(t.id))
-      .sort(
-        (a, b) =>
-          (a.due_date ?? "9999").localeCompare(b.due_date ?? "9999") ||
-          (a.priority ?? 4) - (b.priority ?? 4) ||
-          a.title.localeCompare(b.title, "cs")
-      );
+      .sort(byDue);
+    const leadRows = ((leadRes.data ?? []) as unknown as (Task & {
+      task_assignees?: { user_id: string }[];
+    })[]).sort(byDue);
+    const leadByTask: Record<string, string[]> = {};
+    for (const t of leadRows) {
+      leadByTask[t.id] = (t.task_assignees ?? []).map((a) => a.user_id);
+    }
     const mem = (memRes.data as unknown as Membership[]) ?? [];
     setTasks(mine);
     setMembers(mem);
-    cacheSet(cacheKey, { tasks: mine, members: mem });
+    setLeadTasks(leadRows);
+    setLeadAssignees(leadByTask);
+    cacheSet(cacheKey, {
+      tasks: mine,
+      members: mem,
+      leadTasks: leadRows,
+      leadAssignees: leadByTask,
+    });
     setLoading(false);
   }, [supabase, wsId, userId, cacheKey]);
 
@@ -98,25 +132,53 @@ export default function MyTasksView({
 
   if (loading) return <p className="p-4 text-ink-soft/70">Načítám…</p>;
 
-  const groups = dueBuckets(tasks);
+  const shown = mode === "mine" ? tasks : leadTasks;
+  const groups = dueBuckets(shown);
 
   return (
     <div className="w-full space-y-4">
-      <div className="flex items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3">
         <Avatar profile={profile} colorKey={userId} size="lg" />
         <div>
           <h1 className="font-display text-lg font-semibold">{heading}</h1>
           <p className="text-xs text-ink-soft/70">
-            {tasks.length === 0
+            {shown.length === 0
               ? "Žádné otevřené úkoly."
-              : `${tasks.length} otevřených úkolů`}
+              : `${shown.length} otevřených úkolů`}
           </p>
         </div>
+        {/* přepínač se ukáže, jen když někde vedu — jinak je záložka k ničemu */}
+        {leadTasks.length > 0 && (
+          <div className="ml-auto inline-flex rounded-lg bg-black/5 p-0.5 text-sm">
+            {(
+              [
+                ["mine", "Moje", tasks.length],
+                ["lead", "Vedu", leadTasks.length],
+              ] as const
+            ).map(([key, label, count]) => (
+              <button
+                key={key}
+                onClick={() => setMode(key)}
+                aria-pressed={mode === key}
+                className={`rounded-md px-3 py-1 transition-colors ${
+                  mode === key
+                    ? "bg-surface font-medium text-ink shadow-sm"
+                    : "text-ink-soft hover:text-ink"
+                }`}
+              >
+                {label}
+                <span className="ml-1.5 text-xs text-ink-soft/60">{count}</span>
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {tasks.length === 0 ? (
+      {shown.length === 0 ? (
         <p className="panel p-8 text-center text-sm text-ink-soft/70">
-          Nemáš žádné otevřené úkoly. 🎉
+          {mode === "mine"
+            ? "Nemáš žádné otevřené úkoly. 🎉"
+            : "Nevedeš žádný otevřený úkol."}
         </p>
       ) : (
         groups.map((group) => (
@@ -126,14 +188,38 @@ export default function MyTasksView({
             count={group.tasks.length}
             accent={group.accent}
           >
-            {group.tasks.map((task) => (
-              <TaskRow
-                key={task.id}
-                task={task}
-                onOpen={setOpenTask}
-                onToggleDone={toggleDone}
-              />
-            ))}
+            {group.tasks.map((task) => {
+              // u vedených úkolů ukaž, kdo na nich reálně dělá
+              const rowAssignees =
+                mode === "lead"
+                  ? (leadAssignees[task.id] ?? [])
+                      .map((id) => members.find((m) => m.user_id === id))
+                      .filter((m): m is Membership => !!m)
+                  : [];
+              return (
+                <TaskRow
+                  key={task.id}
+                  task={task}
+                  onOpen={setOpenTask}
+                  onToggleDone={toggleDone}
+                  meta={
+                    rowAssignees.length > 0 && (
+                      <span className="flex -space-x-1.5">
+                        {rowAssignees.slice(0, 4).map((m) => (
+                          <Avatar
+                            key={m.user_id}
+                            profile={m.profiles}
+                            colorKey={m.user_id}
+                            size="sm"
+                            className="border border-surface"
+                          />
+                        ))}
+                      </span>
+                    )
+                  }
+                />
+              );
+            })}
           </TaskGroup>
         ))
       )}
