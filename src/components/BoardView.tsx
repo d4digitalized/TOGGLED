@@ -8,6 +8,7 @@ import {
   PointerSensor,
   TouchSensor,
   closestCorners,
+  useDroppable,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -28,6 +29,7 @@ import { createClient } from "@/lib/supabase/client";
 import { posBetween } from "@/lib/position";
 import { startTimer } from "@/lib/timer";
 import { toast } from "@/lib/toast";
+import { pingNotifyEmails } from "@/lib/notify";
 import { confirmDialog } from "@/lib/confirm";
 import { TASKS_CHANGED_EVENT } from "@/lib/tasksChanged";
 import { PRIORITIES } from "@/lib/priority";
@@ -41,6 +43,11 @@ const CardModal = dynamic(() => import("@/components/CardModal"), { ssr: false }
 type CardsByCol = Record<string, Task[]>;
 
 const COL_PREFIX = "col:";
+
+// Automatické (virtuální) sloupce na konci každé nástěnky — nejsou v DB.
+// Waiting on = otevřené karty s follow-upem, Done = dokončené karty.
+const WAITING_COL = "__waiting";
+const DONE_COL = "__done";
 
 function colDndId(id: string) {
   return `${COL_PREFIX}${id}`;
@@ -71,6 +78,9 @@ export default function BoardView({
   const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [cards, setCards] = useState<CardsByCol>({});
   const [orphans, setOrphans] = useState<Task[]>([]);
+  // automatické sloupce: karty s follow-upem a hotové karty
+  const [waitingTasks, setWaitingTasks] = useState<Task[]>([]);
+  const [doneTasks, setDoneTasks] = useState<Task[]>([]);
   const [members, setMembers] = useState<Membership[]>([]);
   const [loading, setLoading] = useState(true);
   const [openTask, setOpenTask] = useState<Task | null>(null);
@@ -231,10 +241,22 @@ export default function BoardView({
             (assigneesByTask[t.id] ?? []).some((id) => team.has(id))
         );
 
+    // automatické sloupce: hotové karty → Done, otevřené s follow-upem →
+    // Waiting on; v běžných sloupcích zůstává jen zbytek
+    const done = tasks
+      .filter((t) => t.completed_at)
+      .sort((a, b) => (b.completed_at ?? "").localeCompare(a.completed_at ?? ""));
+    const waiting = tasks.filter((t) => !t.completed_at && waitingByTask[t.id]);
+    const boardTasks = tasks.filter(
+      (t) => !t.completed_at && !waitingByTask[t.id]
+    );
+    setDoneTasks(done);
+    setWaitingTasks(waiting);
+
     const byCol: CardsByCol = {};
     const lost: Task[] = [];
     for (const col of cols) byCol[col.id] = [];
-    for (const task of tasks) {
+    for (const task of boardTasks) {
       if (task.column_id && byCol[task.column_id]) byCol[task.column_id].push(task);
       else if (cols[0]) byCol[cols[0].id].push(task); // karta bez sloupce → první sloupec
       else lost.push(task); // žádné sloupce neexistují — karty nesmí zmizet
@@ -366,6 +388,7 @@ export default function BoardView({
     const fromCol = findColumnOf(activeId);
     const toCol = isColId(overId) ? stripCol(overId) : findColumnOf(overId);
     if (!fromCol || !toCol || fromCol === toCol) return;
+    if (toCol.startsWith("__")) return; // automatické sloupce řeší až dragEnd
 
     // optimistický přesun mezi sloupci, ať je vidět "díra"
     setCards((prev) => {
@@ -410,6 +433,33 @@ export default function BoardView({
         toast("Přesun sloupce se neuložil — obnovuji nástěnku.", "error");
         load();
       }
+      return;
+    }
+
+    // puštění karty na automatický sloupec: Done kartu dokončí,
+    // Waiting on se plní jen follow-upem z karty
+    const dropTarget = isColId(overId)
+      ? stripCol(overId)
+      : doneTasks.some((t) => t.id === overId)
+        ? DONE_COL
+        : waitingTasks.some((t) => t.id === overId)
+          ? WAITING_COL
+          : null;
+    if (dropTarget === DONE_COL) {
+      if (findColumnOf(activeId)) {
+        const { error } = await supabase
+          .from("tasks")
+          .update({ completed_at: new Date().toISOString() })
+          .eq("id", activeId);
+        if (error) toast("Dokončení se nezdařilo.", "error");
+        else pingNotifyEmails(); // opakovaná karta může přiřadit další výskyt
+      }
+      load();
+      return;
+    }
+    if (dropTarget === WAITING_COL) {
+      toast("Sem karty padají samy — otevři kartu a nastav „Čekám na“.");
+      load();
       return;
     }
 
@@ -626,6 +676,64 @@ export default function BoardView({
             ))}
           </SortableContext>
 
+          {/* automatické sloupce — má je každý projekt, plní se samy */}
+          <VirtualColumn
+            dndId={colDndId(WAITING_COL)}
+            title="⏳ Waiting on"
+            count={visible(waitingTasks).length}
+            hint="Plní se automaticky kartami s follow-upem („Čekám na“ na kartě)."
+          >
+            <SortableContext
+              items={visible(waitingTasks).map((t) => t.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="flex min-h-2 flex-col gap-2">
+                {visible(waitingTasks).map((task) => (
+                  <BoardCard
+                    key={task.id}
+                    task={task}
+                    members={members}
+                    labels={cardLabels[task.id]}
+                    assigneeIds={cardAssignees[task.id]}
+                    subtaskCount={subCounts[task.id]}
+                    waitingOn={cardWaiting[task.id]}
+                    ghostAssignees={cardGhosts[task.id]}
+                    onOpen={openCard}
+                    onStart={startCard}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </VirtualColumn>
+          <VirtualColumn
+            dndId={colDndId(DONE_COL)}
+            title="✓ Done"
+            count={visible(doneTasks).length}
+            hint="Plní se automaticky dokončenými kartami; přetažením sem kartu dokončíš."
+          >
+            <SortableContext
+              items={visible(doneTasks).map((t) => t.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <div className="flex min-h-2 flex-col gap-2">
+                {visible(doneTasks).map((task) => (
+                  <BoardCard
+                    key={task.id}
+                    task={task}
+                    members={members}
+                    labels={cardLabels[task.id]}
+                    assigneeIds={cardAssignees[task.id]}
+                    subtaskCount={subCounts[task.id]}
+                    waitingOn={cardWaiting[task.id]}
+                    ghostAssignees={cardGhosts[task.id]}
+                    onOpen={openCard}
+                    onStart={startCard}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </VirtualColumn>
+
           <form onSubmit={addColumn} className="w-64 shrink-0">
             <input
               type="text"
@@ -662,6 +770,46 @@ export default function BoardView({
           }}
         />
       )}
+    </div>
+  );
+}
+
+/** Automatický sloupec (Waiting on / Done): nejde přejmenovat, smazat ani
+    přesouvat a nemá „+ Přidat kartu" — plní se sám. Je ale droppable,
+    aby šla karta přetažením do Done rovnou dokončit. */
+function VirtualColumn({
+  dndId,
+  title,
+  count,
+  hint,
+  children,
+}: {
+  dndId: string;
+  title: string;
+  count: number;
+  hint: string;
+  children: React.ReactNode;
+}) {
+  const { setNodeRef, isOver } = useDroppable({ id: dndId });
+  return (
+    <div
+      ref={setNodeRef}
+      className={`w-64 shrink-0 snap-start rounded-xl bg-black/5 p-2 ${
+        isOver ? "ring-2 ring-accent/40" : ""
+      }`}
+    >
+      <div className="mb-2 flex items-center gap-1 px-1" title={hint}>
+        <span className="flex-1 truncate text-sm font-semibold text-ink-soft">
+          {title}
+          <span className="ml-1.5 text-xs font-normal text-ink-soft/70">
+            {count}
+          </span>
+        </span>
+        <span className="text-xs text-ink-soft/40" aria-hidden>
+          auto
+        </span>
+      </div>
+      {children}
     </div>
   );
 }
