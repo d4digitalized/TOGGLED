@@ -132,6 +132,13 @@ export default function CardModal({
   const [followup, setFollowup] = useState<TaskFollowup | null>(null);
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [error, setError] = useState<string | null>(null);
+  // autosave: pole se ukládají samy (text při opuštění, výběry hned)
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  // co je v DB — ať se text neukládá zbytečně a šlo se vrátit při chybě
+  const savedRef = useRef({ title: task.title, description: task.description });
+  // něco se uložilo → při zavření musí parent přenačíst seznam
+  const changedRef = useRef(false);
+  const closeRef = useRef<() => void>(() => {});
   const dialogRef = useRef<HTMLDivElement>(null);
   // našeptávač @zmínek v komentáři
   const commentRef = useRef<HTMLInputElement>(null);
@@ -141,11 +148,11 @@ export default function CardModal({
   useEffect(() => {
     dialogRef.current?.focus();
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") closeRef.current();
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, []);
 
   const loadComments = useCallback(async () => {
     const { data } = await supabase
@@ -424,46 +431,73 @@ export default function CardModal({
       return;
     }
     await loadProjects();
-    setProjectId(data.id as string);
+    await saveProject(data.id as string);
   }
 
-  async function save() {
-    const projectChanged = projectId !== task.project_id;
-    const patch: Record<string, unknown> = {
-      title: title.trim() || task.title,
-      description,
-      due_date: dueDate || null,
-      priority,
-      recurrence: (recurrence || null) as Recurrence | null,
-      completed_at: done
-        ? (task.completed_at ?? new Date().toISOString())
-        : null,
-      project_id: projectId,
-      is_private: isPrivate,
-    };
+  /** Uloží dílčí změnu rovnou do DB (autosave) — modal zůstává otevřený. */
+  async function autosave(patch: Record<string, unknown>) {
+    setSaveState("saving");
+    const { error } = await supabase.from("tasks").update(patch).eq("id", task.id);
+    if (error) {
+      setSaveState("idle");
+      setError("Uložení se nezdařilo.");
+      return false;
+    }
+    changedRef.current = true;
+    setError(null);
+    setSaveState("saved");
+    loadActivity();
+    return true;
+  }
+
+  /** Text se ukládá při opuštění pole a jen když se opravdu změnil. */
+  function saveTitle() {
+    const next = title.trim() || task.title;
+    if (next !== title) setTitle(next);
+    if (next === savedRef.current.title) return;
+    savedRef.current.title = next;
+    autosave({ title: next });
+  }
+
+  function saveDescription() {
+    if (description === savedRef.current.description) return;
+    savedRef.current.description = description;
+    autosave({ description });
+  }
+
+  /** Přesun karty do jiného projektu — s ním putují i podúkoly. */
+  async function saveProject(next: string | null) {
+    setProjectId(next);
     // cílový projekt má vlastní sloupce → kartu vyřadíme ze sloupce, board ji
     // při načtení zařadí do prvního sloupce nového projektu
-    if (projectChanged) patch.column_id = null;
-
-
-    const { error } = await supabase
-      .from("tasks")
-      .update(patch)
-      .eq("id", task.id);
-    if (error) {
-      setError("Uložení se nezdařilo.");
+    const ok = await autosave({ project_id: next, column_id: null });
+    if (!ok) {
+      setProjectId(projectId);
       return;
     }
     // podúkoly patří k rodiči — přesuň je do stejného projektu
-    if (projectChanged) {
-      await supabase
-        .from("tasks")
-        .update({ project_id: projectId })
-        .eq("parent_id", task.id);
+    await supabase.from("tasks").update({ project_id: next }).eq("parent_id", task.id);
+  }
+
+  async function saveDone(next: boolean) {
+    setDone(next);
+    const ok = await autosave({
+      completed_at: next ? (task.completed_at ?? new Date().toISOString()) : null,
+    });
+    if (!ok) {
+      setDone(!next);
+      return;
     }
     pingNotifyEmails(); // dokončení opakované karty přiřazuje další výskyt
-    onChanged();
   }
+
+  /** Zavření karty: když se něco uložilo, ať se seznam pod ní přenačte. */
+  function close() {
+    if (changedRef.current) onChanged();
+    else onClose();
+  }
+  // Esc má vždy po ruce aktuální close (listener se registruje jen jednou)
+  closeRef.current = close;
 
   async function remove() {
     const ok = await confirmDialog({
@@ -671,7 +705,7 @@ export default function CardModal({
   return (
     <div
       className="fixed inset-0 z-50 flex items-stretch justify-center overflow-y-auto bg-black/40 sm:items-start sm:p-10"
-      onClick={onClose}
+      onClick={close}
     >
       <div
         ref={dialogRef}
@@ -689,7 +723,7 @@ export default function CardModal({
             <ProjectPicker
               projects={projects}
               value={projectId}
-              onChange={setProjectId}
+              onChange={saveProject}
               align="left"
               alwaysSearch
               onCreate={isAdmin ? createProjectAndSelect : undefined}
@@ -708,8 +742,17 @@ export default function CardModal({
             </span>
           )}
           <span className="flex-1" />
+          {/* stav autosave — pole se ukládají sama */}
+          <span
+            aria-live="polite"
+            className={`text-xs transition-opacity ${
+              saveState === "idle" ? "opacity-0" : "text-ink-soft/60 opacity-100"
+            }`}
+          >
+            {saveState === "saving" ? "Ukládám…" : "Uloženo"}
+          </span>
           <button
-            onClick={onClose}
+            onClick={close}
             aria-label="Zavřít kartu"
             className="rounded-md px-2 py-1 text-ink-soft/70 hover:bg-black/5"
           >
@@ -724,7 +767,7 @@ export default function CardModal({
               <input
                 type="checkbox"
                 checked={done}
-                onChange={(e) => setDone(e.target.checked)}
+                onChange={(e) => saveDone(e.target.checked)}
                 className="mt-1.5 h-4 w-4"
                 title="Hotovo"
               />
@@ -732,6 +775,10 @@ export default function CardModal({
                 type="text"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
+                onBlur={saveTitle}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") e.currentTarget.blur();
+                }}
                 className="flex-1 rounded-md border border-transparent px-2 py-1 text-lg font-semibold hover:border-line focus:border-line"
               />
             </div>
@@ -739,6 +786,7 @@ export default function CardModal({
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
+          onBlur={saveDescription}
           placeholder="Popis…"
           rows={4}
           className="input w-full px-3 py-2"
@@ -890,13 +938,19 @@ export default function CardModal({
           <input
             type="date"
             value={dueDate}
-            onChange={(e) => setDueDate(e.target.value)}
+            onChange={(e) => {
+              setDueDate(e.target.value);
+              autosave({ due_date: e.target.value || null });
+            }}
             aria-label="Termín"
             className="input px-2 py-1"
           />
           <select
             value={priority}
-            onChange={(e) => setPriority(Number(e.target.value))}
+            onChange={(e) => {
+              setPriority(Number(e.target.value));
+              autosave({ priority: Number(e.target.value) });
+            }}
             aria-label="Priorita"
             style={{ color: priorityColor(priority) ?? undefined }}
             className="input px-2"
@@ -909,7 +963,12 @@ export default function CardModal({
           </select>
           <select
             value={recurrence}
-            onChange={(e) => setRecurrence(e.target.value)}
+            onChange={(e) => {
+              setRecurrence(e.target.value);
+              autosave({
+                recurrence: (e.target.value || null) as Recurrence | null,
+              });
+            }}
             aria-label="Opakování"
             className="input px-2"
           >
@@ -933,7 +992,10 @@ export default function CardModal({
               <input
                 type="checkbox"
                 checked={isPrivate}
-                onChange={(e) => setIsPrivate(e.target.checked)}
+                onChange={(e) => {
+                  setIsPrivate(e.target.checked);
+                  autosave({ is_private: e.target.checked });
+                }}
                 className="h-4 w-4"
               />
               🔒 Skrytý
@@ -1163,8 +1225,9 @@ export default function CardModal({
           >
             Smazat kartu
           </button>
-          <button onClick={save} className="btn-primary">
-            Uložit
+          {/* karta se ukládá průběžně — tohle jen zavře a přenačte seznam */}
+          <button onClick={close} className="btn-primary">
+            Hotovo
           </button>
         </div>
       </div>
