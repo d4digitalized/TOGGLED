@@ -90,8 +90,14 @@ export default function MyTasksView({
     const waiting = new Set((fuRes.data ?? []).map((r) => r.task_id as string));
     const mine = ((mineRes.data ?? []) as unknown as { tasks: Task }[])
       .map((r) => r.tasks)
-      // bez follow-upů (žijí v „Čekám na") a bez uspaných karet (Hold)
-      .filter((t) => !waiting.has(t.id) && !t.on_hold)
+      // bez follow-upů (žijí v „Čekám na"), uspaných karet (Hold)
+      // a bez nezatříděných úkolů — ty čekají v Inboxu
+      .filter(
+        (t) =>
+          !waiting.has(t.id) &&
+          !t.on_hold &&
+          !(!t.project_id && t.created_by === userId && !t.triaged_at)
+      )
       .sort(byDue);
     const leadRows = ((leadRes.data ?? []) as unknown as (Task & {
       task_assignees?: { user_id: string }[];

@@ -272,8 +272,9 @@ export default function NewTaskDialog({
     }
 
     setSaving(false);
-    // bez projektu, řešitele i follow-upu → úkol čeká na třídění v Inboxu
-    const toInbox = !projectId && refs.size === 0 && !waitSel;
+    // bez projektu a follow-upu (nanejvýš s sebou jako řešitelem) → Inbox
+    const toInbox =
+      !projectId && !waitSel && [...refs].every((r) => r === `u:${userId}`);
     toast(toInbox ? `Úkol přidán do Inboxu: ${name}` : `Úkol přidán: ${name}`);
     onCreated();
   }

@@ -85,6 +85,8 @@ export type Task = {
   lead_id?: string | null;
   /** uspaná karta (sloupec Hold) — vidět jen na nástěnce projektu */
   on_hold?: boolean;
+  /** potvrzené roztřídění v Inboxu („Utříděno ✓"); null = ještě v Inboxu */
+  triaged_at?: string | null;
   projects?: { name: string; position?: number };
   board_columns?: { name: string } | null;
 };

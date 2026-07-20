@@ -101,8 +101,14 @@ export default function PriorityListView({
     );
     const mine = ((mineRes.data ?? []) as unknown as { tasks: PriorityTask }[])
       .map((r) => r.tasks)
-      // stejná pravidla jako Moje úkoly: bez follow-upů a bez uspaných karet
-      .filter((t) => !waiting.has(t.id) && !t.on_hold)
+      // stejná pravidla jako Moje úkoly: bez follow-upů, uspaných karet
+      // a bez toho, co ještě čeká na roztřídění v Inboxu
+      .filter(
+        (t) =>
+          !waiting.has(t.id) &&
+          !t.on_hold &&
+          !(!t.project_id && t.created_by === userId && !t.triaged_at)
+      )
       // seřazené položky napřed (podle mého pořadí), zbytek podle termínu
       .sort((a, b) => {
         const pa = order.get(a.id);

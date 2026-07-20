@@ -25,7 +25,8 @@ export default function InboxCount({
         .eq("created_by", userId)
         .is("project_id", null)
         .is("completed_at", null)
-        .is("parent_id", null),
+        .is("parent_id", null)
+        .is("triaged_at", null),
       supabase
         .from("task_followups")
         .select("task_id")
@@ -35,13 +36,14 @@ export default function InboxCount({
     const waiting = new Set((fuRes.data ?? []).map((r) => r.task_id as string));
     const rows = (tRes.data ?? []) as {
       id: string;
-      task_assignees: unknown[];
+      task_assignees: { user_id: string }[];
       task_contact_assignees: unknown[];
     }[];
+    // stejné pravidlo jako InboxView: úkol jen pro mě je pořád nezatříděný
     setCount(
       rows.filter(
         (t) =>
-          (t.task_assignees ?? []).length === 0 &&
+          (t.task_assignees ?? []).every((a) => a.user_id === userId) &&
           (t.task_contact_assignees ?? []).length === 0 &&
           !waiting.has(t.id)
       ).length

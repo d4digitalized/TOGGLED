@@ -72,6 +72,7 @@ export default function InboxView({
         .is("project_id", null)
         .is("completed_at", null)
         .is("parent_id", null)
+        .is("triaged_at", null)
         .order("created_at"),
       supabase
         .from("workspace_members")
@@ -92,15 +93,22 @@ export default function InboxView({
       supabase.from("contacts").select("*").eq("workspace_id", wsId).order("name"),
     ]);
     const waiting = new Set((fuRes.data ?? []).map((r) => r.task_id as string));
+    // v Inboxu je i úkol, kde jsem jediný řešitel já — pořád není zatříděný
     const fresh = ((tRes.data ?? []) as unknown as (Task & {
       task_assignees?: { user_id: string }[];
       task_contact_assignees?: { contact_id: string }[];
     })[]).filter(
       (t) =>
-        (t.task_assignees ?? []).length === 0 &&
+        (t.task_assignees ?? []).every((a) => a.user_id === userId) &&
         (t.task_contact_assignees ?? []).length === 0 &&
         !waiting.has(t.id)
     );
+    // řešitel z DB (typicky já) ať je v řádku vidět hned po načtení
+    for (const t of fresh) {
+      const mine = (t.task_assignees ?? [])[0]?.user_id;
+      if (mine && !sortRef.current[t.id])
+        sortRef.current[t.id] = { ...EMPTY_SORT, assignee: `u:${mine}` };
+    }
     // rozpracované (už zatříděné v DB, ale nepotvrzené) řádky nechat viset
     setTasks((prev) => {
       const freshIds = new Set(fresh.map((t) => t.id));
@@ -253,8 +261,17 @@ export default function InboxView({
     notifyTasksChanged(); // počítadlo v navigaci
   }
 
-  function markSorted(task: Task) {
+  async function markSorted(task: Task) {
     const s = sortRef.current[task.id];
+    // razítko roztřídění — bez něj by se úkol „jen pro mě" vracel po reloadu
+    const { error } = await supabase
+      .from("tasks")
+      .update({ triaged_at: new Date().toISOString() })
+      .eq("id", task.id);
+    if (error) {
+      toast("Uložení se nezdařilo.", "error");
+      return;
+    }
     const assigneeText = !s?.assignee
       ? null
       : s.assignee === `u:${userId}`
