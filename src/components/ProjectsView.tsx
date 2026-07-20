@@ -4,12 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/lib/toast";
 import { ProjectDot } from "@/components/ProjectPicker";
+import Avatar from "@/components/Avatar";
 import type { Membership, Project } from "@/lib/types";
 
 export default function ProjectsView({ wsId }: { wsId: string }) {
   const supabase = createClient();
   const [projects, setProjects] = useState<Project[]>([]);
   const [wsMembers, setWsMembers] = useState<Membership[]>([]);
+  // členové jednotlivých projektů — kolečka v řádku
+  const [memberIds, setMemberIds] = useState<Record<string, string[]>>({});
   const [newName, setNewName] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -20,7 +23,7 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
   const [assignedLoading, setAssignedLoading] = useState(false);
 
   const load = useCallback(async () => {
-    const [projectsRes, membersRes] = await Promise.all([
+    const [projectsRes, membersRes, pmRes] = await Promise.all([
       supabase
         .from("projects")
         .select("*")
@@ -30,10 +33,24 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
         .order("name"),
       supabase
         .from("workspace_members")
-        .select("workspace_id, user_id, role, profiles(full_name, email)")
+        .select(
+          "workspace_id, user_id, role, profiles(full_name, email, avatar_initials, avatar_color)"
+        )
         .eq("workspace_id", wsId),
+      supabase
+        .from("project_members")
+        .select("project_id, user_id, projects!inner(workspace_id)")
+        .eq("projects.workspace_id", wsId),
     ]);
     setProjects((projectsRes.data as Project[]) ?? []);
+    const byProject: Record<string, string[]> = {};
+    for (const row of pmRes.data ?? []) {
+      byProject[row.project_id as string] = [
+        ...(byProject[row.project_id as string] ?? []),
+        row.user_id as string,
+      ];
+    }
+    setMemberIds(byProject);
     const members = (membersRes.data as unknown as Membership[]) ?? [];
     members.sort((a, b) =>
       (a.profiles?.full_name || a.profiles?.email || "").localeCompare(
@@ -151,6 +168,13 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
       else next.add(userId);
       return next;
     });
+    // kolečka v řádku ať se překreslí hned
+    setMemberIds((prev) => ({
+      ...prev,
+      [projectId]: wasOn
+        ? (prev[projectId] ?? []).filter((id) => id !== userId)
+        : [...(prev[projectId] ?? []), userId],
+    }));
     const { error } = wasOn
       ? await supabase
           .from("project_members")
@@ -167,6 +191,12 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
         else next.delete(userId);
         return next;
       });
+      setMemberIds((prev) => ({
+        ...prev,
+        [projectId]: wasOn
+          ? [...(prev[projectId] ?? []), userId]
+          : (prev[projectId] ?? []).filter((id) => id !== userId),
+      }));
       toast("Změna členství se nezdařila.", "error");
     }
   }
@@ -247,10 +277,32 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
               ) : (
                 <>
                   <span
-                    className={`flex-1 text-sm ${project.archived ? "text-ink-soft/70 line-through" : ""}`}
+                    className={`min-w-0 flex-1 truncate text-sm ${project.archived ? "text-ink-soft/70 line-through" : ""}`}
                   >
                     {project.name}
                   </span>
+                  {/* kdo je na projektu — admini se nepočítají, ti vidí vše */}
+                  {(memberIds[project.id] ?? []).length > 0 && (
+                    <span className="flex shrink-0 -space-x-1.5">
+                      {(memberIds[project.id] ?? []).slice(0, 6).map((id) => {
+                        const m = wsMembers.find((x) => x.user_id === id);
+                        return (
+                          <Avatar
+                            key={id}
+                            profile={m?.profiles}
+                            colorKey={id}
+                            size="sm"
+                            className="border border-surface"
+                          />
+                        );
+                      })}
+                      {(memberIds[project.id] ?? []).length > 6 && (
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full border border-surface bg-black/10 text-[9px] font-medium text-ink-soft">
+                          +{(memberIds[project.id] ?? []).length - 6}
+                        </span>
+                      )}
+                    </span>
+                  )}
                   <button
                     onClick={() => openMembers(project)}
                     aria-expanded={membersFor === project.id}
