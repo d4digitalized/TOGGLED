@@ -284,12 +284,11 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
                   {/* kdo projekt vidí: admini | přiřazení členové */}
                   {(() => {
                     const explicit = memberIds[project.id] ?? [];
-                    const admins = wsMembers.filter(
-                      (m) => m.role === "admin" && !explicit.includes(m.user_id)
-                    );
+                    // admin je vlevo vždy — projekt vidí i bez zaškrtnutí
+                    const admins = wsMembers.filter((m) => m.role === "admin");
                     const assignedMembers = explicit
                       .map((id) => wsMembers.find((x) => x.user_id === id))
-                      .filter((m): m is Membership => !!m);
+                      .filter((m): m is Membership => !!m && m.role !== "admin");
                     if (admins.length === 0 && assignedMembers.length === 0)
                       return null;
                     const dot = (m: Membership) => (
