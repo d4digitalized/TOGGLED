@@ -67,12 +67,17 @@ export function buildNavSections(
 ): NavSection[] {
   return [
     {
+      // Master — co řeším teď, napříč všemi firmami
+      title: "Master",
+      items: [
+        { href: `/w/${wsId}/priority`, label: "Priority list", icon: "list" },
+      ],
+    },
+    {
       title: "Sledování",
       items: [
         { href: `/w/${wsId}/inbox`, label: "Inbox", icon: "inbox", badge: true },
         { href: `/w/${wsId}/my`, label: "Moje úkoly", icon: "user" },
-        // Priority list — moje úkoly ze všech firem v ručním pořadí
-        { href: `/w/${wsId}/priority`, label: "Priority list", icon: "list" },
         // Čekám na — jen pro odemknuté delegátory (admin / can_delegate)
         ...(canDelegate
           ? [
