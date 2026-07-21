@@ -45,6 +45,8 @@ export default async function WorkspaceLayout({
   const canHide = isAdmin || !!membership?.can_hide;
   // Task force: kdo může zadávat i jiným (admin / aspoň jeden grant)
   const canTaskforce = isAdmin || (grantCount ?? 0) > 0;
+  // Poznámky: osobní scratchpad, jen komu to admin zapnul (i adminovi sobě)
+  const canNotes = !!membership?.can_notes;
 
   // ke každé mé firmě i práva v ní — přepínač v „Nový úkol" je potřebuje,
   // canDelegate/canHide se firmu od firmy liší
@@ -75,6 +77,7 @@ export default async function WorkspaceLayout({
         isSuperAdmin={isSuperAdmin}
         canDelegate={canDelegate}
         canTaskforce={canTaskforce}
+        canNotes={canNotes}
         userId={user.id}
         userName={profile?.full_name || profile?.email || ""}
         userProfile={profile}
@@ -91,6 +94,7 @@ export default async function WorkspaceLayout({
         isSuperAdmin={isSuperAdmin}
         canDelegate={canDelegate}
         canTaskforce={canTaskforce}
+        canNotes={canNotes}
         userId={user.id}
         userName={profile?.full_name || profile?.email || ""}
         userProfile={profile}

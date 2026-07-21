@@ -39,6 +39,8 @@ export type Membership = {
   can_hide?: boolean;
   /** HR: vidí a exportuje výkazy lidí z hr_grants; adminům dáno vždy. Nastavuje admin. */
   can_hr?: boolean;
+  /** osobní poznámky v Masteru; default vypnuto všem. Nastavuje admin. */
+  can_notes?: boolean;
   workspaces?: Workspace;
   profiles?: Profile;
 };

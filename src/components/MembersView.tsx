@@ -538,6 +538,17 @@ export default function MembersView({
                     )}
                   </>
                 )}
+                {/* Poznámky — osobní scratchpad; dostupné i adminům (nemají
+                    override, musí si to zapnout sami) */}
+                <MemberFlagToggle
+                  wsId={wsId}
+                  userId={member.user_id}
+                  flag="can_notes"
+                  title="Poznámky"
+                  hint="Odemkne osobní poznámkový blok v sekci Master (soukromý, jen pro daného člověka)."
+                  initial={member.can_notes ?? false}
+                  onSaved={load}
+                />
               </>
             )}
           </div>
@@ -623,7 +634,7 @@ function MemberFlagToggle({
 }: {
   wsId: string;
   userId: string;
-  flag: "can_delegate" | "can_hide" | "notify_enabled" | "can_hr";
+  flag: "can_delegate" | "can_hide" | "notify_enabled" | "can_hr" | "can_notes";
   title: string;
   hint: string;
   initial: boolean;

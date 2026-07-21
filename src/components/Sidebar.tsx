@@ -24,6 +24,7 @@ export default function Sidebar({
   isSuperAdmin,
   canDelegate = false,
   canTaskforce = false,
+  canNotes = false,
   userId,
   userName,
   userProfile,
@@ -34,6 +35,7 @@ export default function Sidebar({
   isSuperAdmin: boolean;
   canDelegate?: boolean;
   canTaskforce?: boolean;
+  canNotes?: boolean;
   userId?: string;
   userName: string;
   userProfile?: Profile | null;
@@ -66,7 +68,8 @@ export default function Sidebar({
     isAdmin,
     isSuperAdmin,
     canDelegate,
-    canTaskforce
+    canTaskforce,
+    canNotes
   );
   const isActive = (href: string) => isNavActive(pathname, href, wsId);
 
