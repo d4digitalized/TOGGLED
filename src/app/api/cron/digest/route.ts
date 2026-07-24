@@ -64,8 +64,9 @@ export async function GET(req: Request) {
   const emailById = new Map(
     (profilesRes.data ?? []).map((p) => [p.id as string, p.email as string])
   );
-  const digestOff = new Set(
-    (prefsRes.data ?? []).filter((p) => !p.daily_digest).map((p) => p.user_id as string)
+  // přehled chodí jen tomu, kdo si ho výslovně zapnul (default vypnuto)
+  const digestOn = new Set(
+    (prefsRes.data ?? []).filter((p) => p.daily_digest).map((p) => p.user_id as string)
   );
   // per-firma notifikační e-mail (přebíjí účetní), klíč `user:workspace`
   const notifyOverride = new Map<string, string>();
@@ -80,7 +81,7 @@ export async function GET(req: Request) {
 
   let sent = 0;
   for (const [userId, userTasks] of byUser) {
-    if (digestOff.has(userId)) continue;
+    if (!digestOn.has(userId)) continue;
     const account = emailById.get(userId);
 
     // rozděl karty podle výsledné adresy — bez override spadne vše na účetní

@@ -10,7 +10,8 @@ const DEFAULTS: Omit<NotificationPrefs, "user_id"> = {
   on_assign: false,
   on_comment: true,
   on_mention: true,
-  daily_digest: true,
+  // denní přehled taky vypnutý (viz migrace 0035)
+  daily_digest: false,
 };
 
 const ITEMS: { key: keyof typeof DEFAULTS; label: string; hint: string }[] = [
@@ -32,7 +33,7 @@ const ITEMS: { key: keyof typeof DEFAULTS; label: string; hint: string }[] = [
   {
     key: "daily_digest",
     label: "Denní přehled",
-    hint: "Ranní souhrn karet po termínu a s termínem dnes.",
+    hint: "Ranní souhrn karet po termínu a s termínem dnes. Standardně vypnuto.",
   },
 ];
 
