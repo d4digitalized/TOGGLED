@@ -20,7 +20,7 @@ const display = Familjen_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Kronos",
+  title: "Kronos.", // s tečkou jako logo v aplikaci
   description: "Nástěnky a měření času pro firmu",
 };
 
