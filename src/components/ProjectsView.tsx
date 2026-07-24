@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "@/lib/toast";
 import { confirmDialog } from "@/lib/confirm";
+import { loadProjectColors } from "@/lib/projectColors";
 import { ProjectDot, projectColor } from "@/components/ProjectPicker";
 import Avatar, { AVATAR_COLORS } from "@/components/Avatar";
 import type { Membership, Project, ProjectCategory } from "@/lib/types";
@@ -65,6 +66,8 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
     ]);
     setProjects((projectsRes.data as Project[]) ?? []);
     setCategories((catRes.data as ProjectCategory[]) ?? []);
+    // tečky projektů dědí barvu kategorie — po každé změně je přepočítat
+    loadProjectColors(supabase, wsId);
     const byProject: Record<string, string[]> = {};
     for (const row of pmRes.data ?? []) {
       byProject[row.project_id as string] = [
@@ -188,7 +191,9 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
     if (error) {
       toast("Změna barvy se nezdařila.", "error");
       load();
+      return;
     }
+    loadProjectColors(supabase, wsId); // přebarvi tečky projektů v kategorii
   }
 
   async function removeCategory(cat: ProjectCategory) {
@@ -221,7 +226,9 @@ export default function ProjectsView({ wsId }: { wsId: string }) {
     if (error) {
       toast("Změna kategorie se nezdařila.", "error");
       load();
+      return;
     }
+    loadProjectColors(supabase, wsId); // tečka projektu převezme barvu kategorie
   }
 
   async function rename(project: Project) {

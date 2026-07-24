@@ -1,9 +1,10 @@
 "use client";
 
 import Picker from "@/components/Picker";
+import { useProjectColors } from "@/lib/projectColors";
 import type { Project } from "@/lib/types";
 
-/* Projekty nemají vlastní barvu v DB — tečku odvozujeme stabilně z id,
+/* Projekt bez kategorie nemá v DB barvu — tečku odvozujeme stabilně z id,
    paleta ladí s petrolejovou/mosaznou kostrou design systému. */
 const DOT_PALETTE = [
   "#0e7569", // petrolejová
@@ -22,7 +23,8 @@ export function projectColor(id: string): string {
   return DOT_PALETTE[Math.abs(h) % DOT_PALETTE.length];
 }
 
-/** Tečka projektu; bez projektu (id null) = obrysová.
+/** Tečka projektu; bez projektu (id null) = obrysová. Zařazený projekt
+    dědí barvu své kategorie, jinak se odvodí z id.
     print-color-adjust ať ji tisk/PDF nevybělí. */
 export function ProjectDot({
   id,
@@ -31,12 +33,13 @@ export function ProjectDot({
   id: string | null;
   className?: string;
 }) {
+  const colors = useProjectColors();
   return (
     <span
       className={`inline-block shrink-0 rounded-full [-webkit-print-color-adjust:exact] [print-color-adjust:exact] ${
         id ? "" : "border border-ink-soft/40"
       } ${className}`}
-      style={id ? { background: projectColor(id) } : undefined}
+      style={id ? { background: colors[id] || projectColor(id) } : undefined}
       aria-hidden
     />
   );
@@ -63,6 +66,7 @@ export default function ProjectPicker({
   /** „➕ založit projekt" na konci nabídky (jen admin — RLS). */
   onCreate?: (name: string) => void;
 }) {
+  const colors = useProjectColors();
   return (
     <Picker
       options={[
@@ -70,7 +74,7 @@ export default function ProjectPicker({
         ...projects.map((p) => ({
           id: p.id as string | null,
           label: p.name,
-          dot: projectColor(p.id),
+          dot: colors[p.id] || projectColor(p.id),
         })),
       ]}
       value={value}

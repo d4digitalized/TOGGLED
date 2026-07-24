@@ -1,7 +1,7 @@
 import { projectColor } from "@/components/ProjectPicker";
 
 /* stejná paleta jako tečky projektů — nabídka pro barvu avataru
-   (členové v Členech, externí kontakty tamtéž) */
+   (členové v Členech, externí kontakty) i pro kategorie projektů */
 export const AVATAR_COLORS = [
   "#0e7569",
   "#b45309",
@@ -11,6 +11,10 @@ export const AVATAR_COLORS = [
   "#4d7c0f",
   "#b91c1c",
   "#475569",
+  // světlejší trojice pro kategorie projektů
+  "#2b7fff", // modrá
+  "#00bc7d", // smaragdová
+  "#ffb900", // jantarová
 ];
 
 export type AvatarLike = {

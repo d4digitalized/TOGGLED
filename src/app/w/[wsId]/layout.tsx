@@ -4,6 +4,7 @@ import Sidebar from "@/components/Sidebar";
 import MobileNav from "@/components/MobileNav";
 import TimerBar from "@/components/TimerBar";
 import NewTaskFab from "@/components/NewTaskFab";
+import ProjectColorsLoader from "@/components/ProjectColorsLoader";
 import type { Workspace, WorkspaceOption } from "@/lib/types";
 
 export default async function WorkspaceLayout({
@@ -100,6 +101,8 @@ export default async function WorkspaceLayout({
         userProfile={profile}
       />
       <NewTaskFab wsId={wsId} userId={user.id} workspaces={wsOptions} />
+      {/* tečky projektů dědí barvu své kategorie */}
+      <ProjectColorsLoader wsId={wsId} />
     </div>
   );
 }
